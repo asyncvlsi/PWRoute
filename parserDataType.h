@@ -134,7 +134,11 @@ public:
         lowerLeft.print();
         upperRight.print();
     }
-    bool cover(Point2D<T> p)
+    bool boundaryExclusiveCover(Point2D<T> p)
+    {
+        return (lowerLeft.x < p.x && lowerLeft.y < p.y && upperRight.x > p.x && upperRight.y > p.y);
+    }
+bool cover(Point2D<T> p)
     {
         return (lowerLeft.x <= p.x && lowerLeft.y <= p.y && upperRight.x >= p.x && upperRight.y >= p.y);
     }

@@ -224,6 +224,7 @@ public:
     float area;
     float minWidth;
     float offset;
+    float minLength; //derived by minarea/width
 
     SpacingTable spacingTable;
     std::vector<Spacing> spacings;
@@ -445,6 +446,7 @@ public:
     std::map<string, int> macro2idx;
     std::map<string, int> lefVia2idx;
     std::map<string, int> viaRuleGenerate2idx;
+    std::map<int, int> topLayerIdx2ViaIdx;
 
     Macro tmpMacro;
     Layer tmpLayer;

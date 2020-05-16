@@ -973,7 +973,8 @@ int getLefLayers(lefrCallbackType_e type, lefiLayer* layer, lefiUserData data) {
     if (layer->hasArea()) {
       tmpLayer.area = layer->area();
     }
-
+    tmpLayer.minLength = tmpLayer.area / tmpLayer.width;
+    
     if(enableOutput)
         cout <<"Layer" << layer->name() << " number of props " <<layer->numProps() <<endl;
     if(layer->numProps() > 1)
@@ -1017,7 +1018,7 @@ int getLefLayers(lefrCallbackType_e type, lefiLayer* layer, lefiUserData data) {
 
         } 
         else { 
-            cout << "unsupported spacing!"<<endl;
+            cout << "no eol spacing!"<<endl;
         }
     }
 
@@ -1127,7 +1128,7 @@ int getLefVias(lefrCallbackType_e type, lefiVia* via, lefiUserData data) {
     cout <<"Error: unsupported via: " << via->name() << endl;
     exit(1);
   }
-
+  string topLayerName;
   for (int i = 0; i < via->numLayers(); ++i) {
     parser::LayerRect tmpLayerRect;
     tmpLayerRect.layerName = via->layerName(i);
@@ -1138,10 +1139,14 @@ int getLefVias(lefrCallbackType_e type, lefiVia* via, lefiUserData data) {
         tmpLayerRect.rects.push_back(rect);
     }
     tmpVia.layerRects.push_back(tmpLayerRect);
+    if(i == via->numLayers() - 1) 
+        topLayerName = via->layerName(i);
   }
   
   int viaIdx = ((parser::lefDataBase*) data)->vias.size();
+  int topLayerIdx = ((parser::lefDataBase* ) data)->layer2idx[topLayerName];
   ((parser::lefDataBase*) data)->lefVia2idx.insert( pair<string, int> (tmpVia.name, viaIdx));
+  ((parser::lefDataBase*) data)->topLayerIdx2ViaIdx.insert( pair<int, int> (topLayerIdx, viaIdx));
   ((parser::lefDataBase*) data)->vias.push_back(tmpVia);
 
   if(enableOutput)

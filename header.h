@@ -32,4 +32,6 @@
 
 using namespace std;
 
+#define MAX_FLOW 0
+
 #endif

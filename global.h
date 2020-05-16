@@ -4,13 +4,12 @@
 #include "defDataBase.h"
 #include "lefDataBase.h"
 
+#define GLOBAL_CAP_REDUCTION 4
+#define CAP_ADJ_FACTOR 0.9
 
 parser::defDataBase defDB;
    
 parser::lefDataBase lefDB;
-
-#define GLOBAL_CAP_REDUCTION 4
-#define CAP_ADJ_FACTOR 0.9
 
 int GLOBAL_CAP_ADJ(int x)
 {
@@ -20,8 +19,5 @@ int GLOBAL_CAP_ADJ(int x)
 		return ((float) x * CAP_ADJ_FACTOR < 2)?  1 : x * CAP_ADJ_FACTOR - 1;
 }
 
-#define MAX_FLOW 0
-
-//#define OPENDB 
 
 #endif

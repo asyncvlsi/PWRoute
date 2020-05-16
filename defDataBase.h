@@ -358,6 +358,17 @@ public:
     }
 };
 
+class Wire {
+public:
+    double coorX[2];
+    double coorY[2];
+    int numPathPoint;
+    string layerName;
+    string viaName;
+    int width;
+
+};
+
 class PWGND {
 public:
     int pitch;
@@ -365,19 +376,29 @@ public:
     int layerWidth;
     string meshLayerName;
     string routeLayerName;
-    string horizontalLayerName;
-    string verticalLayerName;
+    string hLayerName;
+    string vLayerName;
+    int lastHLayerID;
+    string lastHLayerName;
     string upperBoundNet;
     string direction;
     
     vector<string> startSNet;
-    vector<int> powerxMesh;
-    vector<int> gndxMesh;
+    vector<int> xMesh;
     vector<vector<int>> poweryMesh;
     vector<vector<int>> gndyMesh;
     
     vector<vector<Point2D<int>>> VDDpins;
     vector<vector<Point2D<int>>> GNDpins;
+    
+    vector<Wire> powerWires;
+    vector<Wire> gndWires;
+    
+    vector<Range<int>> powerHighLayerY;
+    vector<Range<int>> gndHighLayerY;
+
+    map<int, set<int>> M2Fill;
+    set<Point2D<int>> unusablePoints;
 };
 
 class defDataBase

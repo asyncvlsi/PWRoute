@@ -3,11 +3,14 @@
 extern parser::lefDataBase lefDB;
 extern parser::defDataBase defDB;
 
+
+/*
 parser::Point2D<int> findClosestVDD(parser::Point2D<int> point);
 parser::Point2D<int> findClosestGND(parser::Point2D<int> point);
 
 parser::Point2D<int> findVDDClusterTouch(parser::Point2D<int> point);
 parser::Point2D<int> findGNDClusterTouch(parser::Point2D<int> point);
+*/
 
 namespace parser
 {
@@ -1084,17 +1087,18 @@ int writeDesignEnd(defwCallbackType_e c, defiUserData ud) {
   return 0;
 }
 
+
 int clusterWriteSNet(defwCallbackType_e c, defiUserData ud) {
    
     double coorX[3], coorY[3];
   
     int width = ((parser::defDataBase*) ud)->pwgnd.width;
-    parser::PWGND pwgnd = ((parser::defDataBase*) ud) -> pwgnd;
+    parser::PWGND& pwgnd = ((parser::defDataBase*) ud) -> pwgnd;
     parser::Rect2D<int> dieArea = ((parser::defDataBase*) ud)->dieArea;
-    string verticalLayerName = pwgnd.verticalLayerName;
-    string horizontalLayerName = pwgnd.horizontalLayerName;
+    string vLayerName = pwgnd.vLayerName;
+    string hLayerName = pwgnd.hLayerName;
 
-    int vlayerID = lefDB.layer2idx[verticalLayerName];
+    int vlayerID = lefDB.layer2idx[vLayerName];
     int vlayerWidth = lefDB.layers[vlayerID].width * defDB.dbuPerMicro;
 
     defwStartSpecialNets(defDB.powerNets.size() + defDB.gndNets.size());
@@ -1104,218 +1108,48 @@ int clusterWriteSNet(defwCallbackType_e c, defiUserData ud) {
 
     defwSpecialNetConnection("*", powerNet.c_str(), 0);
     defwSpecialNetUse("POWER");
-    
-
-    for(int i = 0; i < pwgnd.powerxMesh.size(); i++) {
+   
+    for(int i = 0; i < pwgnd.powerWires.size(); i++) {
+        //cout << i << endl;
+        auto& wire = pwgnd.powerWires[i];
+       //cout << wire.layerName << " " << wire.width << " " << wire.numPathPoint;
+       //cout << " [" << wire.coorX[0] << "," << wire.coorY[0] <<"]-["<<wire.coorX[1]<<","<<wire.coorY[1]<<"]" << endl;
         if(i == 0)
             defwSpecialNetPathStart("ROUTED");
-        else
+       else     
             defwSpecialNetPathStart("NEW");
-
-        defwSpecialNetPathLayer(verticalLayerName.c_str());
-
-        defwSpecialNetPathWidth(width);
-        defwSpecialNetPathShape("STRIPE");     
-        
-        coorX[0] = pwgnd.powerxMesh[i];
-        coorY[0] = dieArea.lowerLeft.y;
-        coorX[1] = pwgnd.powerxMesh[i];
-        coorY[1] = dieArea.upperRight.y;
-        
-        defwSpecialNetPathPoint(2, coorX, coorY); 
+        defwSpecialNetPathLayer(wire.layerName.c_str());
+        defwSpecialNetPathWidth(wire.width);
+        defwSpecialNetPathShape("STRIPE");
+        defwSpecialNetPathPoint(wire.numPathPoint, wire.coorX, wire.coorY);
+        if(wire.numPathPoint == 1)
+            defwSpecialNetPathVia(wire.viaName.c_str());
     }
-
-    
-    for(int i = 0; i < pwgnd.poweryMesh.size(); i++) {
-        if(i % 2 == 0) { 
-            coorX[0] = pwgnd.gndxMesh[i / 2] + 2 * width;
-            coorX[1] = pwgnd.powerxMesh[i / 2];
-        }
-        else {
-            coorX[0] = pwgnd.powerxMesh[i / 2];
-            coorX[1] = pwgnd.gndxMesh[i / 2 + 1] - 2 * width;
-        }
-        for(int j = 0; j < pwgnd.poweryMesh[i].size(); j++) {
-            coorY[0] = pwgnd.poweryMesh[i][j];
-            coorY[1] = pwgnd.poweryMesh[i][j];
-        
-        
-            defwSpecialNetPathStart("NEW");
-
-            defwSpecialNetPathLayer(horizontalLayerName.c_str());
-
-            defwSpecialNetPathWidth(width);
-            defwSpecialNetPathShape("STRIPE");     
-        
-            defwSpecialNetPathPoint(2, coorX, coorY);
-            double viaX, viaY;
-            if(i % 2 == 0) {
-                viaX = coorX[1];
-                viaY = coorY[1];   
-            }
-            else {
-                viaX = coorX[0];
-                viaY = coorY[0];
-            }
-            defwSpecialNetPathStart("NEW");
-            defwSpecialNetPathLayer(verticalLayerName.c_str());
-            defwSpecialNetPathWidth(0);
-            defwSpecialNetPathShape("STRIPE");     
-            defwSpecialNetPathPoint(1, &viaX, &viaY);
-            defwSpecialNetPathVia("v2_C");
-        }
-    }
-    cout << "vddpin size:" << pwgnd.VDDpins.size() << " " << pwgnd.VDDpins[0].size() << endl; 
-    for(int i = 0; i < pwgnd.VDDpins[0].size(); i++) {
-        parser::Point2D<int> VDDpin = pwgnd.VDDpins[0][i];
-
-        parser::Point2D<int> touch = findVDDClusterTouch(VDDpin);
-        
-        coorX[0] = VDDpin.x;
-        coorY[0] = VDDpin.y;
-        coorX[1] = touch.x;
-        coorY[1] = touch.y;
-
-        defwSpecialNetPathStart("NEW");
-
-        defwSpecialNetPathLayer(verticalLayerName.c_str());
-
-        defwSpecialNetPathWidth(vlayerWidth);
-        defwSpecialNetPathShape("STRIPE");     
-        
-        defwSpecialNetPathPoint(2, coorX, coorY);
-    
-        defwSpecialNetPathVia("v2_C");//one via above mesh
-        //two vias above pin
-        defwSpecialNetPathStart("NEW");
-        defwSpecialNetPathLayer(verticalLayerName.c_str());
-        defwSpecialNetPathWidth(0);
-        defwSpecialNetPathShape("STRIPE");     
-        defwSpecialNetPathPoint(1, coorX, coorY);    
-        defwSpecialNetPathVia("v2_C");
-    
-        defwSpecialNetPathStart("NEW");
-        defwSpecialNetPathLayer(lefDB.layers[2].name.c_str());
-        defwSpecialNetPathWidth(0);
-        defwSpecialNetPathShape("STRIPE");     
-        defwSpecialNetPathPoint(1, coorX, coorY);    
-        defwSpecialNetPathVia("v1_C");    
-    
-    }
-    
     
     defwSpecialNetPathEnd();
     defwSpecialNetEndOneNet();
     //=================================================POWER DONE
     
-    cout << "gndpin size:" << pwgnd.GNDpins.size() << " " << pwgnd.GNDpins[0].size() << endl; 
     string gndNet = defDB.gndNets[0];
     defwSpecialNet(gndNet.c_str());
 
     defwSpecialNetConnection("*", gndNet.c_str(), 0);
     defwSpecialNetUse("GROUND");
-    
-
-    for(int i = 0; i < pwgnd.gndxMesh.size(); i++) {
-        if(i == 0)
+ 
+    for(int i = 0; i < pwgnd.gndWires.size(); i++) {
+       if(i == 0)
             defwSpecialNetPathStart("ROUTED");
-        else
+       else     
             defwSpecialNetPathStart("NEW");
-
-        defwSpecialNetPathLayer(verticalLayerName.c_str());
-
-        defwSpecialNetPathWidth(width);
-        defwSpecialNetPathShape("STRIPE");     
+        auto& wire = pwgnd.gndWires[i];
+        defwSpecialNetPathLayer(wire.layerName.c_str());
+        defwSpecialNetPathWidth(wire.width);
+        defwSpecialNetPathShape("STRIPE");
+        defwSpecialNetPathPoint(wire.numPathPoint, wire.coorX, wire.coorY);
         
-        coorX[0] = pwgnd.gndxMesh[i];
-        coorY[0] = dieArea.lowerLeft.y;
-        coorX[1] = pwgnd.gndxMesh[i];
-        coorY[1] = dieArea.upperRight.y;
-        
-        defwSpecialNetPathPoint(2, coorX, coorY); 
+        if(wire.numPathPoint == 1)
+            defwSpecialNetPathVia(wire.viaName.c_str());
     }
-
-    
-    for(int i = 0; i < pwgnd.gndyMesh.size(); i++) {
-        if(i % 2 == 0) { 
-            coorX[0] = pwgnd.gndxMesh[i / 2];
-            coorX[1] = pwgnd.powerxMesh[i / 2] - 2 * width;
-        }
-        else {
-            coorX[0] = pwgnd.powerxMesh[i / 2] + 2 * width;
-            coorX[1] = pwgnd.gndxMesh[i / 2 + 1];
-        }
-        for(int j = 0; j < pwgnd.gndyMesh[i].size(); j++) {
-            coorY[0] = pwgnd.gndyMesh[i][j];
-            coorY[1] = pwgnd.gndyMesh[i][j];
-        
-        
-            defwSpecialNetPathStart("NEW");
-
-            defwSpecialNetPathLayer(horizontalLayerName.c_str());
-
-            defwSpecialNetPathWidth(width);
-            defwSpecialNetPathShape("STRIPE");     
-        
-            defwSpecialNetPathPoint(2, coorX, coorY);
-            
-            double viaX, viaY;
-            if(i % 2 == 0) {
-                viaX = coorX[0];
-                viaY = coorY[0];   
-            }
-            else {
-                viaX = coorX[1];
-                viaY = coorY[1];
-            }
-            defwSpecialNetPathStart("NEW");
-            defwSpecialNetPathLayer(verticalLayerName.c_str());
-            defwSpecialNetPathWidth(0);
-            defwSpecialNetPathShape("STRIPE");     
-            defwSpecialNetPathPoint(1, &viaX, &viaY);
-        
-            defwSpecialNetPathVia("v2_C");
-        } 
-    }
-    for(int i = 0; i < pwgnd.GNDpins[0].size(); i++) {
-        parser::Point2D<int> GNDpin = pwgnd.GNDpins[0][i];
-
-        parser::Point2D<int> touch = findGNDClusterTouch(GNDpin);
-        
-        coorX[0] = GNDpin.x;
-        coorY[0] = GNDpin.y;
-        coorX[1] = touch.x;
-        coorY[1] = touch.y;
-
-        defwSpecialNetPathStart("NEW");
-
-        defwSpecialNetPathLayer(verticalLayerName.c_str());
-
-        defwSpecialNetPathWidth(vlayerWidth);
-        defwSpecialNetPathShape("STRIPE");     
-        
-        defwSpecialNetPathPoint(2, coorX, coorY);
-        
-        defwSpecialNetPathVia("v2_C");//one via above mesh
-        //two vias above pin
-        defwSpecialNetPathStart("NEW");
-        defwSpecialNetPathLayer(verticalLayerName.c_str());
-        defwSpecialNetPathWidth(0);
-        defwSpecialNetPathShape("STRIPE");     
-        defwSpecialNetPathPoint(1, coorX, coorY);    
-        defwSpecialNetPathVia("v2_C");
-    
-        defwSpecialNetPathStart("NEW");
-        defwSpecialNetPathLayer(lefDB.layers[2].name.c_str());
-        defwSpecialNetPathWidth(0);
-        defwSpecialNetPathShape("STRIPE");     
-        defwSpecialNetPathPoint(1, coorX, coorY);    
-        defwSpecialNetPathVia("v1_C");
-    
-    }
-    
-
-    
     defwSpecialNetPathEnd();
     defwSpecialNetEndOneNet();
     

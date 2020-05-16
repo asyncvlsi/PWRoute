@@ -320,7 +320,6 @@ void computeOBSLocation(parser::Component& component)
     }
     else if(component.orient == "S")
     {
-
             for(auto& layerRect : component.macro.obs.layerRects)
             {
                 for(auto& rect : layerRect.rects)
@@ -332,11 +331,13 @@ void computeOBSLocation(parser::Component& component)
                     rect.set(llx, lly, urx, ury);
                 }
             }
-
     }
     else if(component.orient == "E")
     {
-            for(auto& layerRect : component.macro.obs.layerRects)
+        int tmp = component.macro.size.x;
+        component.macro.size.x = component.macro.size.y;
+        component.macro.size.y = tmp;
+        for(auto& layerRect : component.macro.obs.layerRects)
             {
                 for(auto& rect : layerRect.rects)
                 {
@@ -376,8 +377,11 @@ void computeOBSLocation(parser::Component& component)
 
     }
     else if(component.orient == "W")
-    {
-            for(auto& layerRect : component.macro.obs.layerRects)
+    {  
+        int tmp = component.macro.size.x;
+        component.macro.size.x = component.macro.size.y;
+        component.macro.size.y = tmp;
+           for(auto& layerRect : component.macro.obs.layerRects)
             {
                 for(auto& rect : layerRect.rects)
                 {
@@ -459,7 +463,10 @@ void computeOBSLocation(parser::Component& component)
     }
     else if(component.orient == "FE")
     {
-            for(auto& layerRect : component.macro.obs.layerRects)
+        int tmp = component.macro.size.x;
+        component.macro.size.x = component.macro.size.y;
+        component.macro.size.y = tmp;
+        for(auto& layerRect : component.macro.obs.layerRects)
             {
                 for(auto& rect : layerRect.rects)
                 {
@@ -511,7 +518,10 @@ void computeOBSLocation(parser::Component& component)
     }
     else if(component.orient == "FW")
     {
-            for(auto& layerRect : component.macro.obs.layerRects)
+        int tmp = component.macro.size.x;
+        component.macro.size.x = component.macro.size.y;
+        component.macro.size.y = tmp;
+           for(auto& layerRect : component.macro.obs.layerRects)
             {
                 for(auto& rect : layerRect.rects)
                 {
@@ -576,6 +586,9 @@ void preprocessComponent( )
     defDB.designRuleOBS.resize(lefDB.layers.size());
     for(auto& component : defDB.components)
     {   
+        if(lefDB.macro2idx.find(component.macroName) == lefDB.macro2idx.end())
+            cout << component.macroName << endl;
+        
         assert(lefDB.macro2idx.find(component.macroName) != lefDB.macro2idx.end());
 
         int macroIdx = lefDB.macro2idx.find(component.macroName)->second;
@@ -1953,6 +1966,7 @@ void linkTrackToLayer()
                     {
                         if(layerName == layer.name && track.direction == "Y") {
                             defDB.layerName2trackidx.insert( pair<string, int> (layer.name, i));
+                            defDB.layeridx2trackidx.insert( pair<int, int> (layer.idx, i));
                         }
                     }
                 }
@@ -1966,6 +1980,7 @@ void linkTrackToLayer()
                     {
                         if(layerName == layer.name && track.direction == "X") {
                             defDB.layerName2trackidx.insert( pair<string, int> (layer.name, i));
+                            defDB.layeridx2trackidx.insert( pair<int, int> (layer.idx, i));
                         }
                     }
                 }
@@ -2143,14 +2158,20 @@ int main(int argc, char** argv)
     if(!defFileName.empty())
         readDef(defFileName);
 
-
+    /*cout << "num vias: " << lefDB.vias.size() << endl;
+    for(int i = 0; i < lefDB.layers.size(); i++) {
+        cout << lefDB.topLayerIdx2ViaIdx[i] << endl;;
+    }*/
+    
+    
     linkTrackToLayer();
     preprocessSpacingTable();
     
     preprocessComponent(); 
 
     //simplePWGNDMesh();
-    clusterPWGNDMesh(clusterFileName);
+    SNetConfig(clusterFileName);
+    routeSNet(); 
     if(!outFileName.empty())
         writeDef(outFileName);
     
