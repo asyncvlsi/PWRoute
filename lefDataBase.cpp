@@ -973,8 +973,21 @@ int getLefLayers(lefrCallbackType_e type, lefiLayer* layer, lefiUserData data) {
     if (layer->hasArea()) {
       tmpLayer.area = layer->area();
     }
-    tmpLayer.minLength = tmpLayer.area / tmpLayer.width;
     
+    double grid = ((parser::lefDataBase* )data)->manufacturingGrid;  
+    if(grid == 0)
+        tmpLayer.minLength = tmpLayer.area / tmpLayer.width;
+    else {
+        float minLength = tmpLayer.area / tmpLayer.width;
+        int multiple = (minLength / grid) / 6;
+        if(minLength == ((float) multiple )* grid * 6)
+            tmpLayer.minLength = minLength;
+        else {
+            tmpLayer.minLength = (multiple + 1) * grid * 6;
+        }
+    }
+    
+
     if(enableOutput)
         cout <<"Layer" << layer->name() << " number of props " <<layer->numProps() <<endl;
     if(layer->numProps() > 1)

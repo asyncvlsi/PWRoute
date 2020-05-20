@@ -399,6 +399,8 @@ public:
 
     map<int, set<int>> M2Fill;
     set<Point2D<int>> unusablePoints;
+    set<Point2D<int>> powerM2Points;
+    set<Point2D<int>> gndM2Points;
 };
 
 class defDataBase

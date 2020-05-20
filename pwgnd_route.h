@@ -7,11 +7,14 @@
 extern parser::lefDataBase lefDB;
 extern parser::defDataBase defDB;
 
+
 #define MESH_MULTIPLE 2
 int POWER_FOUND = 0;
 int POWER_UNFOUND = 0;
 int GROUND_FOUND = 0;
 int GROUND_UNFOUND = 0;
+
+#define HORIZONTAL_M4 1
 
 /*void simplePWGNDMesh() {
 	cout << "route pwgnd" << endl;
@@ -136,6 +139,21 @@ void readCluster(string clusterFileName) {
 
 }
 
+float fitGrid(float num) {
+    float manufacturingGrid = lefDB.manufacturingGrid;
+    float grid = lefDB.manufacturingGrid;  
+    if(manufacturingGrid == 0)
+        return num;
+    else {
+        int multiple = (num / grid) / 2;
+        if(num == ((float) multiple )* grid * 2)
+            return num;
+        else {
+            return (multiple + 1) * grid * 2;
+        }
+
+    }
+}
 
 void SNetConfig(string clusterFileName) {
     readCluster(clusterFileName);
@@ -153,16 +171,27 @@ void SNetConfig(string clusterFileName) {
     viaLength *= defDB.dbuPerMicro;
     defDB.pwgnd.width = max(MESH_MULTIPLE * defDB.pwgnd.layerWidth, viaLength);
 
+    defDB.pwgnd.width = fitGrid(defDB.pwgnd.width);
 
+#ifdef HORIZONTAL_M4
+    if(lefDB.layers.at(0).direction == "HORIZONTAL") {
+	    defDB.pwgnd.vLayerName = lefDB.layers.at(6).name;
+	    defDB.pwgnd.hLayerName = lefDB.layers.at(8).name;
+    }
+    else { //usually this branch because m2 = horizontal
+        defDB.pwgnd.vLayerName = lefDB.layers.at(8).name; //M5
+	    defDB.pwgnd.hLayerName = lefDB.layers.at(6).name; //M4
+    }
+#else
     if(lefDB.layers.at(0).direction == "HORIZONTAL") {
 	    defDB.pwgnd.vLayerName = lefDB.layers.at(2).name;
 	    defDB.pwgnd.hLayerName = lefDB.layers.at(0).name;
     }
     else { //usually this branch because m2 = horizontal
-        defDB.pwgnd.vLayerName = lefDB.layers.at(0).name;
-	    defDB.pwgnd.hLayerName = lefDB.layers.at(2).name;
+        defDB.pwgnd.vLayerName = lefDB.layers.at(0).name; //M1
+	    defDB.pwgnd.hLayerName = lefDB.layers.at(2).name; //M2
     }
-
+#endif
     cout << "vertical: " << defDB.pwgnd.vLayerName << endl;
     cout << "horizontal: " << defDB.pwgnd.hLayerName << endl;
 
@@ -406,6 +435,9 @@ void routeHighLayerSNet(string signal) {
     int lastHLayerID = defDB.pwgnd.lastHLayerID;
     int width = lefDB.layers[lastHLayerID].width * defDB.dbuPerMicro * MESH_MULTIPLE;
     int pitch = lefDB.layers[lastHLayerID].pitchy * defDB.dbuPerMicro * MESH_MULTIPLE;
+    width = fitGrid(width);
+    pitch = fitGrid(pitch);
+    
     int offset;
     int midoffset;
     
@@ -442,7 +474,7 @@ void routeHighLayerSNet(string signal) {
     
     int xstart = (signal == "POWER")? 1 : 0;
 
-    for(int i = 2; i < lastHLayerID; i += 2) {
+    for(int i = vlayerID + 2; i < lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
@@ -468,7 +500,7 @@ void routeHighLayerSNet(string signal) {
     yranges.push_back(yrange);
     
 
-   for(int i = 2; i < lastHLayerID; i += 2) {
+   for(int i = vlayerID + 2; i < lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
@@ -493,7 +525,7 @@ void routeHighLayerSNet(string signal) {
     yranges.push_back(yrange);
     
 
-   for(int i = 2; i < lastHLayerID; i += 2) {
+   for(int i = vlayerID + 2; i < lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
@@ -635,7 +667,8 @@ void routeLowLayerMesh(string signal) {
 
 
             tmpWire.numPathPoint = 1;
-            int viaID = lefDB.topLayerIdx2ViaIdx[hLayerID];
+            tmpWire.layerName = vLayerName;
+            int viaID = lefDB.topLayerIdx2ViaIdx[vLayerID]; //M4-M5
             tmpWire.viaName = lefDB.vias[viaID].name;
             if(left_offset == 0) {
 
@@ -650,9 +683,14 @@ void routeLowLayerMesh(string signal) {
             else
                 tmpWire.coorX[0] -= width / 2;
             
+#ifdef HORIZONTAL_M4
+            wires.push_back(tmpWire); // M4-M5 will always not be covered
+#else   
+            
             if(!inHighLayerViaRange(signal, tmpWire.coorY[0])) // if covered by high via layers, no need to add via
                 wires.push_back(tmpWire);
-            
+#endif
+
             int midRange = 0;
             if(nearHighLayerViaRange(signal, tmpWire.coorY[0], midRange)) {// if near, need to add metal to connect 
                 int M2_spacing = (lefDB.layers[2].pitchy - lefDB.layers[2].width) * defDB.dbuPerMicro;
@@ -667,7 +705,7 @@ void routeLowLayerMesh(string signal) {
                 
                 tmpWire.coorX[1] = tmpWire.coorX[0];
 
-                tmpWire.layerName = hLayerName;
+                tmpWire.layerName = vLayerName; 
                 tmpWire.width = width;
                 tmpWire.numPathPoint = 2;
                 wires.push_back(tmpWire);
@@ -879,12 +917,14 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
   
 
     int width = lefDB.layers[4].width * defDB.dbuPerMicro; //M3
-    map<int, int> trackClosestPinPoint; 
+    map<int, int> trackClosestPinPoint; //map trackIdx -> y
     map<int, int> trackFarthestPinPoint; 
 
+    //map<int, int> touchPinPoint; //map x -> y 
     parser::Track track = defDB.tracks[defDB.layeridx2trackidx[4]]; //M3
     
     findClosestTouchPoints(pinRect, trackClosestPinPoint, track, width / 2, signalY);
+    //findTouchPointsNoTrack(pinRect, touchPinPoint, track, width / 2, signalY);
     findFarthestTouchPoints(pinRect, trackFarthestPinPoint, track, width / 2, signalY);
     
     string M1_name = lefDB.layers[0].name;
@@ -932,7 +972,7 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
         for(int viaIdx = lefDB.topLayerIdx2ViaIdx[2]; viaIdx < lefDB.topLayerIdx2ViaIdx[4]; viaIdx++) { //vias whose top layer is M2
             parser::lefVia via = lefDB.vias[viaIdx];
             int llx, lly, urx, ury;
-            bool M1cover = false;
+            M1cover = false;
             for(auto layerRect : via.layerRects) {
                 if(layerRect.layerName == M1_name) {
                     llx = layerRect.rects[0].lowerLeft.x * defDB.dbuPerMicro;        
@@ -999,9 +1039,7 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
             M2wideFail = true;
 
         M2cover = M2wideFail && M2thinFail;  
-        if(component.name == "p_ae__95_ad_ad_5106_6_acx1")
-                cout << "touchpoint x : " << touchPoint.x << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location.x << endl; 
-            
+        
  
         for(auto rect : V1obsRect) {
             auto tmpRect = rect;
@@ -1015,6 +1053,8 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
                 break;
             }
         }//V1 via spacing
+        
+        
         if(V1cover == false && M2cover == false && M1cover == false) {       
             foundM1M3 = true;
             break;
@@ -1043,7 +1083,7 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
         for(int viaIdx = lefDB.topLayerIdx2ViaIdx[2]; viaIdx < lefDB.topLayerIdx2ViaIdx[4]; viaIdx++) { //vias whose top layer is M2
             parser::lefVia via = lefDB.vias[viaIdx];
             int llx, lly, urx, ury;
-            bool M1cover = false;
+            M1cover = false;
             for(auto layerRect : via.layerRects) {
                 if(layerRect.layerName == M1_name) {
                     llx = layerRect.rects[0].lowerLeft.x * defDB.dbuPerMicro;        
@@ -1080,14 +1120,17 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
             tmpRect.lowerLeft.y -= (M2_width / 2 + M2_spacing);
             tmpRect.upperRight.y += (M2_width / 2 + M2_spacing);
             
-            if(touchPoint.x - M2_minlength / 2 < component.location.x || touchPoint.x + M2_minlength / 2 > component.location.x + component.macro.size.x ||
-                    touchPoint.y - M2_width / 2 < component.location.y || touchPoint.y + M2_width / 2 > component.location.y + component.macro.size.y 
-                    || tmpRect.boundaryExclusiveCover(touchPoint)) {
+            if(tmpRect.boundaryExclusiveCover(touchPoint)) {
                 M2thinFail = true;
                 break;
             }
         } // m2 side min area doesn't conflict with m2 obs
-        
+        if(touchPoint.x - M2_minlength / 2 - M2_spacing / 2 < component.location.x || 
+                    touchPoint.x + M2_minlength / 2 + M2_spacing / 2 > component.location.x + component.macro.size.x ||
+                    touchPoint.y - M2_width / 2 - M2_spacing / 2 < component.location.y || 
+                    touchPoint.y + M2_width / 2 + M2_spacing / 2 > component.location.y + component.macro.size.y)
+            M2thinFail = true;
+
         for(auto rect : M2obsRect) {
             auto tmpRect = rect;
             tmpRect.lowerLeft.x -= (M2_minlength / 6 + M2_spacing); 
@@ -1095,15 +1138,27 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
             tmpRect.lowerLeft.y -= (M2_width * 3 / 2 + M2_spacing);
             tmpRect.upperRight.y += (M2_width * 3 / 2 + M2_spacing);
             
-            if(touchPoint.x - M2_minlength / 6 < component.location.x || touchPoint.x + M2_minlength / 6 > component.location.x + component.macro.size.x ||
-                    touchPoint.y - M2_width * 3 / 2 < component.location.y || touchPoint.y + M2_width * 3 / 2 > component.location.y + component.macro.size.y 
-                    || tmpRect.boundaryExclusiveCover(touchPoint)) {
+            if(tmpRect.boundaryExclusiveCover(touchPoint)) {
                 M2wideFail = true;
                 break;
             }
         }
+        
+        if(touchPoint.x - M2_minlength / 6 - M2_spacing / 2 < component.location.x || 
+                    touchPoint.x + M2_minlength / 6 + M2_spacing / 2 > component.location.x + component.macro.size.x ||
+                    touchPoint.y - M2_width * 3 / 2 - M2_spacing / 2 < component.location.y || 
+                    touchPoint.y + M2_width * 3 / 2 + M2_spacing / 2 > component.location.y + component.macro.size.y) 
+            M2wideFail = true;            
+        
         M2cover = M2wideFail && M2thinFail;  
-            
+        
+        if(component.name == "p_ae__95_aa_ax_511_6_acx2") {
+            cout << "M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << endl;
+            cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
+            cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location.x << endl; 
+        
+        }    
+        
         for(auto rect : V1obsRect) {
             auto tmpRect = rect;
             tmpRect.lowerLeft.x -= (V1_width / 2 + V1_spacing); 
@@ -1116,7 +1171,10 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
                 break;
             }
         }//V1 via spacing
-        if(V1cover == false && M2cover == false && M1cover == false) {       
+       if(component.name == "p_ae__95_aa_ax_511_6_acx2")
+            cout << V1cover << M2cover << M1cover << endl;
+        
+       if(V1cover == false && M2cover == false && M1cover == false) {       
             foundM1M3 = true;
             break;
         }
@@ -1201,14 +1259,25 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
 
         }
 
+#ifdef HORIZONTAL_M4
+        int viaID = lefDB.topLayerIdx2ViaIdx[6];
+        tmpWire.coorX[0] = touchX + zRouteOffset;
+        tmpWire.coorY[0] = signalY;
+        tmpWire.numPathPoint = 1;
+        tmpWire.layerName = lefDB.layers[6].name;
+        tmpWire.width = 0;
+        tmpWire.viaName = lefDB.vias[viaID].name;
+        Wires.push_back(tmpWire);//M3 to M4 via, mesh
+#else
         int viaID = lefDB.topLayerIdx2ViaIdx[4];
-        tmpWire.coorX[0] = touchX + zRouteOffset;//
+        tmpWire.coorX[0] = touchX + zRouteOffset;
         tmpWire.coorY[0] = signalY;
         tmpWire.numPathPoint = 1;
         tmpWire.layerName = lefDB.layers[4].name;
         tmpWire.width = 0;
         tmpWire.viaName = lefDB.vias[viaID].name;
         Wires.push_back(tmpWire);//M3 to M2 via, mesh
+#endif
 
         viaID = lefDB.topLayerIdx2ViaIdx[4];
         tmpWire.coorX[0] = touchX + zRouteOffset;//
@@ -1219,42 +1288,6 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
         tmpWire.viaName = lefDB.vias[viaID].name;
         Wires.push_back(tmpWire);//M3 to M2 via, touch
         
-        /*if(pwgnd.M2Fill.count(touchY) == 0) {
-            set<int> tmpxset;
-            pwgnd.M2Fill[touchY] = tmpxset;
-        }
-        auto& xset = pwgnd.M2Fill[touchY];
-        auto right_it = xset.upper_bound(touchX);
-
-        int right;
-        if(right_it == xset.end())
-            right = defDB.dieArea.upperRight.x;
-        else
-            right = *right_it;
-        set<int>::iterator left_it;
-        int left;
-        if(right_it != xset.begin()) {
-            left_it = right_it;
-            left_it--;
-            left = *left_it;
-        }
-        else
-            left = 0;
-        xset.insert(touchX); 
-
-
-        if(touchX - left > M2_spacing + M2_minlength)
-            tmpWire.coorX[0] = touchX - M2_minlength / 2;
-        else
-            tmpWire.coorX[0] = left;
-
-        if(right - touchX > M2_spacing + M2_minlength)
-            tmpWire.coorX[1] = touchX + M2_minlength / 2;
-        else
-            tmpWire.coorX[1] = right;
-        */
-        //if(tmpWire.coorX[0] != left && tmpWire.coorX[1] != right) { // if it is not connected with external min area insertion
-
         if(!M2thinFail) {
             tmpWire.coorX[0] = touchX - M2_minlength / 2;
             tmpWire.coorX[1] = touchX + M2_minlength / 2;
@@ -1271,7 +1304,21 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
         tmpWire.numPathPoint = 2;
         tmpWire.layerName = lefDB.layers[2].name; //M2
         Wires.push_back(tmpWire);//M2 min area 
-    
+        
+        
+        int M3_minLength = lefDB.layers[4].minLength * defDB.dbuPerMicro;
+        if(fabs(touchY - signalY) < M3_minLength) {
+            tmpWire.coorX[0] = touchX; 
+            tmpWire.coorX[1] = touchX; 
+            tmpWire.coorY[0] = signalY;
+            tmpWire.coorY[1] = (signalY < touchY)? signalY + M3_minLength : signalY - M3_minLength;
+            
+            tmpWire.width = M3_width;
+            tmpWire.layerName = lefDB.layers[4].name;
+            tmpWire.numPathPoint = 2;
+            Wires.push_back(tmpWire); //M3 min area
+        }
+
     }
     return foundM1M3;
 }   
@@ -1316,19 +1363,29 @@ bool M2DetailedRouteSNet(parser::Component& component, string signal, int signal
     /*map<int, int> closestPinPoint;
     map<int, int> closestOBSPoint;
     */
-    int M2_minlength = lefDB.layers[2].minLength * defDB.dbuPerMicro;
+    int M2_minLength = lefDB.layers[2].minLength * defDB.dbuPerMicro;
     int M2_pitch = lefDB.layers[2].pitchx * defDB.dbuPerMicro;
     int M2_width = lefDB.layers[2].width * defDB.dbuPerMicro;
     int M2_spacing = (M2_pitch - M2_width);
      
+    int viaIdx = lefDB.topLayerIdx2ViaIdx[2];
+    auto via = lefDB.vias[viaIdx];
+    auto viaRect = via.layerRects[0].rects[0];
+    float h = (viaRect.upperRight.x - viaRect.lowerLeft.x) * defDB.dbuPerMicro;
+    float v = (viaRect.upperRight.y - viaRect.lowerLeft.y) * defDB.dbuPerMicro;
+    float viaWidth = (h > v)? v : h;
+    float viaLength = (h > v)? h : v;
+    
     int width = lefDB.layers[4].width * defDB.dbuPerMicro; //M3
     int pitch = lefDB.layers[4].pitchx * defDB.dbuPerMicro;
     findClosestTouchPoints(pinRect, trackClosestPinPoint, track, - width / 2, signalY); // shrink
     findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, pitch - width / 2, signalY); // this is width/2 + spacing
 
     bool foundM2 = false;
+    
     int touchX, touchY;
-    for(auto pinPoint : trackClosestPinPoint) {
+    
+    for(auto pinPoint : trackClosestPinPoint) { // Cell library gaurantee min area on M2
         int trackIdx = pinPoint.first;
         //touchX = pinPoint.first;
         touchX = track.start + trackIdx * track.step;
@@ -1339,8 +1396,8 @@ bool M2DetailedRouteSNet(parser::Component& component, string signal, int signal
         bool M2cover = false;
         for(auto rect : obsRect) {
             auto tmpRect = rect;
-            tmpRect.lowerLeft.x -= (M2_minlength / 2 + M2_spacing); 
-            tmpRect.upperRight.x += (M2_minlength / 2 + M2_spacing); 
+            tmpRect.lowerLeft.x -= (viaLength / 2 + M2_spacing); // just gaurantee via 
+            tmpRect.upperRight.x += (viaLength / 2 + M2_spacing); 
             tmpRect.lowerLeft.y -= (M2_width / 2 + M2_spacing);
             tmpRect.upperRight.y += (M2_width / 2 + M2_spacing);
             
@@ -1354,8 +1411,15 @@ bool M2DetailedRouteSNet(parser::Component& component, string signal, int signal
             break;
         }
     }
+    
+    
+    int M3_width = lefDB.layers[4].width * defDB.dbuPerMicro;
+    int M3_pitch = lefDB.layers[4].pitchx * defDB.dbuPerMicro;
+    int M3_minlength = lefDB.layers[4].minLength * defDB.dbuPerMicro;
+    
 
     if(foundM2) {
+        parser::Wire tmpWire;
         if(signal == "POWER") { 
             powerPoint.x = touchX;
             powerPoint.y = touchY;
@@ -1366,27 +1430,100 @@ bool M2DetailedRouteSNet(parser::Component& component, string signal, int signal
         else
             touchY += M2_width / 2;
 
+        int zRouteOffset = 0;
+        int viaID;
+        if(signal == "GROUND" && touchX == powerPoint.x &&
+                ((touchY < signalY && powerPoint.y > touchY) || (touchY > signalY && powerPoint.y < touchY))) { //Z route
+           
+            zRouteOffset = M3_pitch;
 
-        parser::Wire tmpWire;
-        tmpWire.coorX[0] = touchX;
-        tmpWire.coorY[0] = touchY;
-        tmpWire.coorX[1] = touchX;
-        tmpWire.coorY[1] = signalY;
-        tmpWire.numPathPoint = 2;
-        tmpWire.layerName = lefDB.layers[4].name; // M3
-        tmpWire.width = width;
-        Wires.push_back(tmpWire);
+            tmpWire.coorX[0] = touchX + zRouteOffset;//
+            tmpWire.coorX[1] = touchX + zRouteOffset;//
+            tmpWire.coorY[1] = signalY;
+            if(fabs(signalY - touchY) >= M3_minlength)
+                tmpWire.coorY[0] = touchY;
+            else {
+                tmpWire.coorY[0] = (touchY > signalY)? signalY + M3_minlength : signalY - M3_minlength;
+            }
+            tmpWire.numPathPoint = 2;
+            tmpWire.layerName = lefDB.layers[4].name; //M3
+            tmpWire.width = M3_width;
+            Wires.push_back(tmpWire);//M3 wire
+            
+            tmpWire.coorX[0] = touchX - M2_width / 2;//
+            tmpWire.coorY[0] = touchY;
+            tmpWire.coorX[1] = touchX + zRouteOffset + M2_width / 2;//
+            tmpWire.coorY[1] = touchY;
+            
+            tmpWire.numPathPoint = 2;
+            tmpWire.layerName = lefDB.layers[2].name; //M2
+            tmpWire.width = M2_width;
+            Wires.push_back(tmpWire);//M2 wire
+            
+            tmpWire.coorX[0] = touchX + zRouteOffset;
+            tmpWire.coorY[0] = touchY;
+            tmpWire.numPathPoint = 1;
+            tmpWire.width = 0;
+            viaID = lefDB.topLayerIdx2ViaIdx[4]; //M2-M3 via, touch side
+            tmpWire.viaName = lefDB.vias[viaID].name;
+            tmpWire.layerName = lefDB.layers[4].name; //M2-M3 via
+            Wires.push_back(tmpWire);//M2 via
+        }
+        else { //normal route without Z
+            tmpWire.coorX[0] = touchX;
+            tmpWire.coorX[1] = touchX;
+            tmpWire.coorY[1] = signalY;
+            if(fabs(signalY - touchY) >= M3_minlength)
+                tmpWire.coorY[0] = touchY;
+            else {
+                tmpWire.coorY[0] = (touchY > signalY)? signalY + M3_minlength : signalY - M3_minlength;
+            }
+            tmpWire.numPathPoint = 2;
+            tmpWire.layerName = lefDB.layers[4].name; //M3
+            tmpWire.width = M3_width;
+            Wires.push_back(tmpWire);//M3 wire
 
-        int viaID = lefDB.topLayerIdx2ViaIdx[4]; //M2-M3 via
-        tmpWire.numPathPoint = 1;
-        tmpWire.width = 0;
-        tmpWire.viaName = lefDB.vias[viaID].name;
-        Wires.push_back(tmpWire);
+            tmpWire.coorX[0] = touchX;
+            tmpWire.coorY[0] = touchY;
+            viaID = lefDB.topLayerIdx2ViaIdx[4]; //M2-M3 via, touch side
+            tmpWire.numPathPoint = 1;
+            tmpWire.width = 0;
+            tmpWire.layerName = lefDB.layers[4].name; //M3
+            tmpWire.viaName = lefDB.vias[viaID].name;
+            Wires.push_back(tmpWire);
+        }
+
+#ifdef HORIZONTAL_M4
+        int M3_minLength = lefDB.layers[4].minLength * defDB.dbuPerMicro;
         
-        viaID = lefDB.topLayerIdx2ViaIdx[4]; //M2-M3 via
+        int M2_width = lefDB.layers[2].width * defDB.dbuPerMicro;
+        int M3_width = lefDB.layers[4].width * defDB.dbuPerMicro;
+        
+        tmpWire.coorX[0] = touchX + zRouteOffset; 
+        tmpWire.coorY[0] = signalY; 
+        tmpWire.numPathPoint = 1;
+        tmpWire.layerName = lefDB.layers[6].name;
+        tmpWire.width = 0;
+        viaID = lefDB.topLayerIdx2ViaIdx[6];
+        tmpWire.viaName = lefDB.vias[viaID].name;
+        Wires.push_back(tmpWire); //M3-M4 via
+
+        /*if(fabs(touchY - signalY) < M3_minLength) {
+            tmpWire.coorX[0] = touchX + zRouteOffset; 
+            tmpWire.coorX[1] = touchX + zRouteOffset; 
+            tmpWire.coorY[0] = signalY;
+            tmpWire.coorY[1] = (touchY > signalY)? signalY + M3_minLength : signalY - M3_minLength;
+            
+            tmpWire.width = M3_width;
+            tmpWire.layerName = lefDB.layers[4].name;
+            tmpWire.numPathPoint = 2;
+            Wires.push_back(tmpWire); //M3 min area
+        }*/
+#else
+        viaID = lefDB.topLayerIdx2ViaIdx[4]; //M2-M3 via, mesh side
         tmpWire.coorY[0] = signalY;
         Wires.push_back(tmpWire);
-
+#endif
     }
     return foundM2;
 
@@ -1431,7 +1568,7 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
         return true;
     else if(pinRect.size() == 0) // no pin on m1
         return false;
-
+    
     parser::Track track = defDB.tracks[defDB.layeridx2trackidx[4]]; //M3
 
     map<int, int> trackClosestPinPoint;
@@ -1441,16 +1578,21 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
     map<int, int> closestOBSPoint;
     */
  
-    int width = lefDB.layers[4].width * defDB.dbuPerMicro;
-    int pitch = lefDB.layers[4].pitchx * defDB.dbuPerMicro;
-    findClosestTouchPoints(pinRect, trackClosestPinPoint, track, width / 2, signalY);
-    findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, pitch - width / 2, signalY); // this is width/2 + spacing
+    int M3_width = lefDB.layers[4].width * defDB.dbuPerMicro;
+    int M3_pitch = lefDB.layers[4].pitchx * defDB.dbuPerMicro;
+    
+    findClosestTouchPoints(pinRect, trackClosestPinPoint, track, M3_width / 2, signalY);
+    findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, M3_pitch - M3_width / 2, signalY); // this is width/2 + spacing
 
     /*findTouchPointsNoTrack(pinRect, closestPinPoint, width / 2, signalY);
     findTouchPointsOBSNoTrack(obsRect, closestPinPoint, closestOBSPoint, pitch - width / 2, signalY);
     */
     
-    bool foundM1 = false;
+    int M1_width = lefDB.layers[0].width * defDB.dbuPerMicro;
+    int M1_pitch = lefDB.layers[0].pitchx * defDB.dbuPerMicro;
+    int M1_spacing = (M1_pitch - M1_width);
+    
+        bool foundM1 = false;
     int touchX, touchY;
     for(auto pinPoint : trackClosestPinPoint) {
         int trackIdx = pinPoint.first;
@@ -1458,6 +1600,26 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
         touchX = track.start + trackIdx * track.step;
         touchY = pinPoint.second;
         float obsY = trackClosestOBSPoint[trackIdx];
+        
+        bool M1cover = false;
+        Point2D<float> touchPoint(touchX, touchY);
+        
+        for(auto rect : obsRect) {
+            auto tmpRect = rect;
+            tmpRect.lowerLeft.x -= (M3_width / 2 + M1_spacing); 
+            tmpRect.upperRight.x += (M3_width / 2 + M1_spacing); 
+            tmpRect.lowerLeft.y -= (M3_width + M1_spacing);
+            tmpRect.upperRight.y += (M3_width + M1_spacing);
+            
+            if(tmpRect.boundaryExclusiveCover(touchPoint)) {
+                M1cover = true;
+                break;
+            }
+        } // m2 side min area doesn't conflict with m2 obs       
+        if(M1cover)
+     continue;
+        
+        
         if(trackClosestOBSPoint.count(trackIdx) != 0) {
             if((touchY < signalY && obsY > touchY) || 
                     (touchY > signalY && obsY < touchY)) {
@@ -1465,13 +1627,13 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
             }
             else {
                 foundM1 = true;
-                touchY = (touchY < signalY)? touchY - width : touchY + width;
+                touchY = (touchY < signalY)? touchY - M3_width : touchY + M3_width;
                 break;
             }
         }
         else {
             foundM1 = true;
-            touchY = (touchY < signalY)? touchY - width : touchY + width;
+            touchY = (touchY < signalY)? touchY - M3_width : touchY + M3_width;
             break;
         }
     }
@@ -1483,6 +1645,9 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
         foundM1 = false;
 
     if(foundM1) {
+        auto& usedPoints = (signal == "POWER")? defDB.pwgnd.powerM2Points : defDB.pwgnd.gndM2Points;
+        usedPoints.insert(point);
+        
         parser::Wire tmpWire;
         tmpWire.coorX[0] = touchX;
         tmpWire.coorY[0] = touchY;
@@ -1490,8 +1655,8 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
         tmpWire.coorY[1] = signalY;
         tmpWire.numPathPoint = 2;
         tmpWire.layerName = lefDB.layers[0].name;
-        tmpWire.width = width;
-        Wires.push_back(tmpWire);
+        tmpWire.width = M3_width;
+        Wires.push_back(tmpWire); //M1 wire
 
         int viaID = lefDB.topLayerIdx2ViaIdx[2];
         for(int i = lefDB.topLayerIdx2ViaIdx[2]; i < lefDB.topLayerIdx2ViaIdx[4]; i++) {
@@ -1507,8 +1672,48 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
         tmpWire.layerName = lefDB.layers[2].name;
         tmpWire.width = 0;
         tmpWire.viaName = lefDB.vias[viaID].name;
-        Wires.push_back(tmpWire);
+        Wires.push_back(tmpWire); //M1-M2 via
+        
 
+
+#if HORIZONTAL_M4
+        int M2_minLength = lefDB.layers[2].minLength * defDB.dbuPerMicro;
+        int M3_minLength = lefDB.layers[4].minLength * defDB.dbuPerMicro;
+        
+        int M2_width = lefDB.layers[2].width * defDB.dbuPerMicro;
+        int M3_width = lefDB.layers[4].width * defDB.dbuPerMicro;
+        
+        tmpWire.layerName = lefDB.layers[4].name;
+        viaID = lefDB.topLayerIdx2ViaIdx[4];
+        tmpWire.viaName = lefDB.vias[viaID].name;
+        Wires.push_back(tmpWire); //M2-M3 via
+
+        tmpWire.layerName = lefDB.layers[6].name;
+        viaID = lefDB.topLayerIdx2ViaIdx[6];
+        tmpWire.viaName = lefDB.vias[viaID].name;
+        Wires.push_back(tmpWire); //M3-M4 via
+        
+        tmpWire.coorX[0] = touchX; 
+        tmpWire.coorX[1] = touchX;
+
+        if(signalY - M3_minLength / 2 < defDB.dieArea.lowerLeft.y) {
+            tmpWire.coorY[0] = defDB.dieArea.lowerLeft.y;
+            tmpWire.coorY[1] = defDB.dieArea.lowerLeft.y + M3_minLength;
+        }
+        else if(signalY + M3_minLength / 2 > defDB.dieArea.upperRight.y) {
+            tmpWire.coorY[0] = defDB.dieArea.upperRight.y;
+            tmpWire.coorY[1] = defDB.dieArea.upperRight.y - M3_minLength;
+        }
+        else {
+            tmpWire.coorY[0] = signalY;
+            tmpWire.coorY[1] = (touchY < signalY)? signalY - M3_minLength : signalY + M3_minLength;
+        }
+        tmpWire.width = M3_width;
+        tmpWire.numPathPoint = 2;
+        tmpWire.layerName = lefDB.layers[4].name;
+        Wires.push_back(tmpWire); //M3 min area
+
+#endif
     }
     return foundM1;
      
@@ -1533,11 +1738,15 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
 
 void detailedRouteSNetComp(parser::Component& component) {
     int powerY, gndY;
-    findRowSNet(component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
-  
+    if(component.macro.pins.size() != 0)
+        findRowSNet(component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
+    else
+        return;
+
     parser::Wire tmpWire;
     Point2D<int> powerPoint(-1, -1);
     bool M1power = false, M1ground = false, M2power = false, M2ground = false, M1M3power = false, M1M3ground = false; 
+    
     M1power = M1DetailedRouteSNet(component, "POWER", powerY, defDB.pwgnd.powerWires, powerPoint);
     if(!M1power) {
         M2power = M2DetailedRouteSNet(component, "POWER", powerY, defDB.pwgnd.powerWires, powerPoint);
@@ -1571,26 +1780,26 @@ void detailedRouteSNetComp(parser::Component& component) {
     else
         GROUND_UNFOUND++;
     
-    //if(component.name == "__well_tap__6")
-    //    cout << "component: " << component.name << " " << M1power << M2power << M1M3power << " " << M1ground << M2ground << M1M3ground << endl;
+    if(component.name == "p_atv__56_57_6_acx1")
+        cout << "component: " << component.name << " " << M1power << M2power << M1M3power << " " << M1ground << M2ground << M1M3ground << endl;
     
 }
 
 void markUnusablePointComp(parser::Component& component) {
     int powerY, gndY;
-    findRowSNet(component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
-     
+    if(component.macro.pins.size() != 0)
+        findRowSNet(component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
+    else
+        return;
+
     vector<parser::Rect2D<float>> pinRect;
     
     for(auto pin : component.macro.pins) {
         for(auto layerRect : pin.layerRects) {
             int layerIdx = lefDB.layer2idx[layerRect.layerName];
-            if(layerIdx == 0) { //M1 
+            if(layerIdx == 0 || layerIdx == 2) { //M1 or M2 
                 for(auto rect : layerRect.rects) {
                     pinRect.push_back(rect);
-
-                    if(component.name == "p_afs__258_acx1" && pin.name == "in_50_6")
-                        cout << rect << endl;
                 }
             }
         }
@@ -1598,7 +1807,7 @@ void markUnusablePointComp(parser::Component& component) {
     
     for(auto layerRect : component.macro.obs.layerRects) {
         int layerIdx = lefDB.layer2idx[layerRect.layerName];
-        if(layerIdx == 0) { //M1
+        if(layerIdx == 0 || layerIdx == 2) { //M1 or M2
             for(auto rect : layerRect.rects) {
                 pinRect.push_back(rect);
             }
@@ -1616,14 +1825,19 @@ void markUnusablePointComp(parser::Component& component) {
 
     parser::Track track = defDB.tracks[defDB.layeridx2trackidx[4]]; //M3
     
+    int M2_minLength = lefDB.layers[2].minLength * defDB.dbuPerMicro;
+    int M2_spacing = (lefDB.layers[2].pitchy - lefDB.layers[2].width) * defDB.dbuPerMicro;
 
     for(auto rect : pinRect) {
         if(fabs(rect.lowerLeft.y - powerY) < M1_spacing + viaWidth / 2 ||  
             fabs(rect.upperRight.y - powerY) < M1_spacing + viaWidth / 2 ) {
-           
-           int start = (rect.lowerLeft.x - M1_spacing - viaLength - track.start) / track.step + 1;
-           int end = (rect.upperRight.x + M1_spacing + viaLength - track.start) / track.step;
-            
+#ifdef HORIZONTAL_M4
+           int start = (rect.lowerLeft.x - M2_spacing - viaLength - M2_minLength / 2 - track.start) / track.step + 1;
+           int end = (rect.upperRight.x + M2_spacing + viaLength + M2_minLength / 2 - track.start) / track.step;
+#else
+           int start = (rect.lowerLeft.x - M2_spacing - viaLength - track.start) / track.step + 1;
+           int end = (rect.upperRight.x + M2_spacing + viaLength - track.start) / track.step;
+#endif
            for(int i = start; i <= end; i++) {
                int xpos = track.start + track.step * i; 
                Point2D<int> point;
@@ -1634,9 +1848,13 @@ void markUnusablePointComp(parser::Component& component) {
         }
         if( fabs(rect.lowerLeft.y - gndY) < M1_spacing + viaWidth / 2 ||
             fabs(rect.upperRight.y - gndY) < M1_spacing + viaWidth / 2 ) {
-            int start = (rect.lowerLeft.x - M1_spacing - viaLength - track.start) / track.step + 1;
-           int end = (rect.upperRight.x + M1_spacing + viaLength - track.start) / track.step;
-            
+#ifdef HORIZONTAL_M4
+           int start = (rect.lowerLeft.x - M2_spacing - viaLength - M2_minLength / 2 - track.start) / track.step + 1;
+           int end = (rect.upperRight.x + M2_spacing + viaLength + M2_minLength / 2 - track.start) / track.step;
+#else
+           int start = (rect.lowerLeft.x - M2_spacing - viaLength - track.start) / track.step + 1;
+           int end = (rect.upperRight.x + M2_spacing + viaLength - track.start) / track.step;
+#endif
            for(int i = start; i <= end; i++) {
                int xpos = track.start + track.step * i; 
                Point2D<int> point;
@@ -1648,12 +1866,74 @@ void markUnusablePointComp(parser::Component& component) {
     }
 }
 
+void M2MetalFill(string signal) {
+    
+    parser::Track track = defDB.tracks[defDB.layeridx2trackidx[4]]; //M3
+    auto& Wires = (signal == "POWER")? defDB.pwgnd.powerWires : defDB.pwgnd.gndWires;
+    
+    int M2_minLength = lefDB.layers[2].minLength * defDB.dbuPerMicro;
+    int M2_width = lefDB.layers[2].width * defDB.dbuPerMicro;
+        
+    auto& usedPoints = (signal == "POWER")? defDB.pwgnd.powerM2Points : defDB.pwgnd.gndM2Points;
+    for(auto point : usedPoints) {
+        Point2D<int> leftPoint, twoLeftPoint, threeLeftPoint;
+        leftPoint.x = point.x - track.step;
+        leftPoint.y = point.y;
+        
+        twoLeftPoint.x = point.x - 2 * track.step;
+        twoLeftPoint.y = point.y;
+        
+        threeLeftPoint.x = point.x - 3 * track.step;
+        threeLeftPoint.y = point.y;
+        if(usedPoints.count(leftPoint) != 0) {
+            parser::Wire tmpWire;
+            tmpWire.coorX[0] = point.x - track.step / 2 - M2_minLength / 2;
+            tmpWire.coorY[0] = point.y;
+            tmpWire.coorX[1] = point.x - track.step / 2 + M2_minLength / 2;
+            tmpWire.coorY[1] = point.y;
+            tmpWire.numPathPoint = 2;
+            tmpWire.layerName = lefDB.layers[2].name;
+            tmpWire.width = M2_width;
+            Wires.push_back(tmpWire); //M2 min area
+        }
+
+        else if(usedPoints.count(twoLeftPoint) != 0 || usedPoints.count(threeLeftPoint) != 0) {
+            parser::Wire tmpWire;
+            if(usedPoints.count(twoLeftPoint) != 0)
+                tmpWire.coorX[0] = point.x - 2 * track.step;
+            else
+                tmpWire.coorX[0] = point.x - 3 * track.step;
+
+            tmpWire.coorY[0] = point.y;
+            tmpWire.coorX[1] = point.x;
+            tmpWire.coorY[1] = point.y;
+            tmpWire.numPathPoint = 2;
+            tmpWire.layerName = lefDB.layers[2].name;
+            tmpWire.width = M2_width;
+            Wires.push_back(tmpWire); //M2 min area
+        }
+        else {
+            parser::Wire tmpWire;
+            tmpWire.coorX[0] = point.x - M2_minLength / 2;
+            tmpWire.coorY[0] = point.y;
+            tmpWire.coorX[1] = point.x + M2_minLength / 2;
+            tmpWire.coorY[1] = point.y;
+            tmpWire.numPathPoint = 2;
+            tmpWire.layerName = lefDB.layers[2].name;
+            tmpWire.width = M2_width;
+            Wires.push_back(tmpWire); //M2 min area
+        }
+    }
+}
 
 void detailedRouteSNet() {
     for(auto& component : defDB.components) {
         detailedRouteSNetComp(component);
     }
     cout << POWER_FOUND << " " << POWER_UNFOUND << " " << GROUND_FOUND << " " << GROUND_UNFOUND << endl;
+    
+    M2MetalFill("POWER");
+    M2MetalFill("GROUND");
 }
 
 void markUnusablePoint() {
@@ -1662,8 +1942,8 @@ void markUnusablePoint() {
     }
     cout << " total unusable points: " << defDB.pwgnd.unusablePoints.size() << endl; 
 
-    for(auto point : defDB.pwgnd.unusablePoints)
-        cout << point << endl;
+    //for(auto point : defDB.pwgnd.unusablePoints)
+    //    cout << point << endl;
 }
 
 void routeSNet() {
@@ -1692,6 +1972,7 @@ void routeSNet() {
 
     markUnusablePoint();
     detailedRouteSNet();
+    cout << "power/ground routing done!" << endl;
 }
 
 #endif
