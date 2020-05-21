@@ -317,7 +317,7 @@ public:
 
     Point2D<int> location;
     string orient;
-
+    string status;
     void clear()
     {
         idx = -1;

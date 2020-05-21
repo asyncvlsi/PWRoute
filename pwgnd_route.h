@@ -474,7 +474,7 @@ void routeHighLayerSNet(string signal) {
     
     int xstart = (signal == "POWER")? 1 : 0;
 
-    for(int i = vlayerID + 2; i < lastHLayerID; i += 2) { //M5-M6
+    for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
@@ -500,7 +500,7 @@ void routeHighLayerSNet(string signal) {
     yranges.push_back(yrange);
     
 
-   for(int i = vlayerID + 2; i < lastHLayerID; i += 2) { //M5-M6
+   for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
@@ -525,7 +525,7 @@ void routeHighLayerSNet(string signal) {
     yranges.push_back(yrange);
     
 
-   for(int i = vlayerID + 2; i < lastHLayerID; i += 2) { //M5-M6
+   for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
@@ -559,7 +559,7 @@ int safeBoundaryDistance() {
             maxDistance = (maxDistance > fabs(rect.upperRight.y))? maxDistance : fabs(rect.upperRight.y);
        }
     }
-    cout << "maxDistance: " << maxDistance << endl;
+    cout << "maxBoundaryDistance: " << maxDistance << endl;
     return maxDistance * defDB.dbuPerMicro; 
 }
 
@@ -845,6 +845,7 @@ void findClosestTouchPoints(vector<parser::Rect2D<float>>& rects, map<int, int>&
         int right = (rect.upperRight.x + expand - track.start) / track.step;
         
         int midY = (rect.lowerLeft.y + rect.upperRight.y) / 2;
+        
 
         for(int i = left; i <= right; i++) {
             if(closestPoint.count(i) == 0) 
@@ -1040,6 +1041,13 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
 
         M2cover = M2wideFail && M2thinFail;  
         
+        if(component.name == "cx1") {
+            cout << signal << ":" << endl;
+            cout << "close M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << endl;
+            cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
+            cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location.x << endl; 
+        }
+
  
         for(auto rect : V1obsRect) {
             auto tmpRect = rect;
@@ -1053,6 +1061,8 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
                 break;
             }
         }//V1 via spacing
+        if(component.name == "cx1")
+            cout << V1cover << M2cover << M1cover << endl;
         
         
         if(V1cover == false && M2cover == false && M1cover == false) {       
@@ -1128,9 +1138,9 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
         if(touchPoint.x - M2_minlength / 2 - M2_spacing / 2 < component.location.x || 
                     touchPoint.x + M2_minlength / 2 + M2_spacing / 2 > component.location.x + component.macro.size.x ||
                     touchPoint.y - M2_width / 2 - M2_spacing / 2 < component.location.y || 
-                    touchPoint.y + M2_width / 2 + M2_spacing / 2 > component.location.y + component.macro.size.y)
+                    touchPoint.y + M2_width / 2 + M2_spacing / 2 > component.location.y + component.macro.size.y) {
             M2thinFail = true;
-
+        }
         for(auto rect : M2obsRect) {
             auto tmpRect = rect;
             tmpRect.lowerLeft.x -= (M2_minlength / 6 + M2_spacing); 
@@ -1147,18 +1157,18 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
         if(touchPoint.x - M2_minlength / 6 - M2_spacing / 2 < component.location.x || 
                     touchPoint.x + M2_minlength / 6 + M2_spacing / 2 > component.location.x + component.macro.size.x ||
                     touchPoint.y - M2_width * 3 / 2 - M2_spacing / 2 < component.location.y || 
-                    touchPoint.y + M2_width * 3 / 2 + M2_spacing / 2 > component.location.y + component.macro.size.y) 
+                    touchPoint.y + M2_width * 3 / 2 + M2_spacing / 2 > component.location.y + component.macro.size.y) { 
             M2wideFail = true;            
-        
+        }
         M2cover = M2wideFail && M2thinFail;  
-        
-        if(component.name == "p_ae__95_aa_ax_511_6_acx2") {
-            cout << "M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << endl;
+        if(component.name == "cx1") {
+            cout << signal << ": " << endl;
+            cout << "far M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << endl;
             cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
             cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location.x << endl; 
-        
-        }    
-        
+        }
+
+
         for(auto rect : V1obsRect) {
             auto tmpRect = rect;
             tmpRect.lowerLeft.x -= (V1_width / 2 + V1_spacing); 
@@ -1171,9 +1181,11 @@ bool M1M3DetailedRouteSNet(parser::Component& component, string signal, int sign
                 break;
             }
         }//V1 via spacing
-       if(component.name == "p_ae__95_aa_ax_511_6_acx2")
+      
+        if(component.name == "cx1")
             cout << V1cover << M2cover << M1cover << endl;
         
+ 
        if(V1cover == false && M2cover == false && M1cover == false) {       
             foundM1M3 = true;
             break;
@@ -1378,13 +1390,14 @@ bool M2DetailedRouteSNet(parser::Component& component, string signal, int signal
     
     int width = lefDB.layers[4].width * defDB.dbuPerMicro; //M3
     int pitch = lefDB.layers[4].pitchx * defDB.dbuPerMicro;
-    findClosestTouchPoints(pinRect, trackClosestPinPoint, track, - width / 2, signalY); // shrink
+    findClosestTouchPoints(pinRect, trackClosestPinPoint, track, 0, signalY); // no expand
     findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, pitch - width / 2, signalY); // this is width/2 + spacing
 
     bool foundM2 = false;
     
     int touchX, touchY;
-    
+   
+
     for(auto pinPoint : trackClosestPinPoint) { // Cell library gaurantee min area on M2
         int trackIdx = pinPoint.first;
         //touchX = pinPoint.first;
@@ -1398,10 +1411,15 @@ bool M2DetailedRouteSNet(parser::Component& component, string signal, int signal
             auto tmpRect = rect;
             tmpRect.lowerLeft.x -= (viaLength / 2 + M2_spacing); // just gaurantee via 
             tmpRect.upperRight.x += (viaLength / 2 + M2_spacing); 
-            tmpRect.lowerLeft.y -= (M2_width / 2 + M2_spacing);
-            tmpRect.upperRight.y += (M2_width / 2 + M2_spacing);
+            tmpRect.lowerLeft.y -= M2_spacing;
+            tmpRect.upperRight.y += M2_spacing;
             
             if(tmpRect.boundaryExclusiveCover(touchPoint)) {
+                if(component.name == "p_ae__131_acpx0" && signal == "GROUND") {
+                    cout << "M2 " << component.name << ": " << touchX << " " << touchY << endl;
+                    cout << rect << endl;
+                }
+                
                 M2cover = true;
                 break;
             }
@@ -1568,7 +1586,11 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
         return true;
     else if(pinRect.size() == 0) // no pin on m1
         return false;
-    
+   
+#ifdef HORIZONTAL_M4
+    return false;
+#endif
+
     parser::Track track = defDB.tracks[defDB.layeridx2trackidx[4]]; //M3
 
     map<int, int> trackClosestPinPoint;
@@ -1780,8 +1802,8 @@ void detailedRouteSNetComp(parser::Component& component) {
     else
         GROUND_UNFOUND++;
     
-    if(component.name == "p_atv__56_57_6_acx1")
-        cout << "component: " << component.name << " " << M1power << M2power << M1M3power << " " << M1ground << M2ground << M1M3ground << endl;
+    //if(component.name == "p_atv__56_57_6_acx1")
+    //    cout << "component: " << component.name << " " << M1power << M2power << M1M3power << " " << M1ground << M2ground << M1M3ground << endl;
     
 }
 
@@ -1972,6 +1994,9 @@ void routeSNet() {
 
     markUnusablePoint();
     detailedRouteSNet();
+    cout << endl;
+    if(POWER_UNFOUND != 0 || GROUND_UNFOUND != 0)
+        cout << "ATTENTION: SOME CELLS FAIL TO ROUTE!" << endl;
     cout << "power/ground routing done!" << endl;
 }
 

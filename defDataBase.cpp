@@ -636,11 +636,25 @@ int getDefIOPins(defrCallbackType_e type, defiPin* pin, defiUserData data) {
   parser::IOPin tmpPin;
   tmpPin.name = pin->pinName();
   tmpPin.netName = pin->netName();
+  if(pin->hasDirection())
+      tmpPin.direction = pin->direction();
+  if(pin->hasUse())
+      tmpPin.use = pin->use();
+  
   int llx, lly, urx, ury;
   llx = 0;
   lly = 0;
   urx = 0;
   ury = 0;
+    
+  if(pin->isPlaced())
+      tmpPin.status = "PLACED";
+  else if(pin->isUnplaced())
+      tmpPin.status = "UNPLACED";
+  else if(pin->isFixed())
+      tmpPin.status = "FIXED";
+  else if(pin->isCover())
+      tmpPin.status = "COVER";
 
   if (pin->hasPort()) {
     cout <<"Error: multiple pin ports existing in DEF" <<endl;
@@ -651,16 +665,15 @@ int getDefIOPins(defrCallbackType_e type, defiPin* pin, defiUserData data) {
     
     for (int i = 0; i < pin->numLayer(); ++i) 
     {
-      tmpPin.layerName = pin->layer(i);
-      
-      tmpPin.location.x = pin->placementX();
-      tmpPin.location.y = pin->placementY();
-      tmpPin.orient = string(pin->orientStr());
+        tmpPin.layerName = pin->layer(i);
+         
+        tmpPin.location.x = pin->placementX();
+        tmpPin.location.y = pin->placementY();
+        tmpPin.orient = string(pin->orientStr());
 
-      pin->bounds(i, &llx, &lly, &urx, &ury);
-      tmpPin.rect.set(llx, lly, urx, ury);
+        pin->bounds(i, &llx, &lly, &urx, &ury);
+        tmpPin.rect.set(llx, lly, urx, ury);
     }
-
   }
 
   tmpPin.idx = ((parser::defDataBase*) data)->iopins.size();
@@ -675,7 +688,26 @@ int getDefIOPins(defrCallbackType_e type, defiPin* pin, defiUserData data) {
 }
 
 int writeIOPins(defwCallbackType_e type, defiUserData data) {
-    defwStartPins(0);
+    
+    defwStartPins(((parser::defDataBase*) data)->iopins.size());
+    
+    for(auto pin : ((parser::defDataBase*) data)->iopins) {
+        defwPinStr(pin.name.c_str(),
+                pin.netName.c_str(),
+                0,
+                pin.direction.c_str(),
+                pin.use.c_str(),
+                pin.status.c_str(),
+                pin.location.x,
+                pin.location.y,
+                pin.orient.c_str(),
+                pin.layerName.c_str(),
+                pin.rect.lowerLeft.x,
+                pin.rect.lowerLeft.y,
+                pin.rect.upperRight.x,
+                pin.rect.upperRight.y
+               );
+    }
     defwEndPins();
 
     return 0;

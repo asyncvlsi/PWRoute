@@ -1185,6 +1185,7 @@ void readDef(dbDatabase* db)
     
     dbDefComponents(chipBlock);
 
+    defrSetPinCbk(getDefIOPins);
 
     /*defrSetDesignCbk(getDefString);
     defrSetDesignEndCbk(getDefVoid);
