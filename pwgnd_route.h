@@ -413,7 +413,7 @@ void placeHighLayerVias(vector<parser::Wire>& wires, int X, int Y,
     tmpWire.numPathPoint = 1;
     tmpWire.viaName = viaName;
      
-    int numVias = length / viaDistance - 1;
+    int numVias = length / viaDistance;
     int ystart = Y - viaDistance * (numVias - 1) / 2;
     int yend = Y + viaDistance * (numVias - 1) / 2;
     int ypos = ystart;
@@ -427,9 +427,9 @@ void placeHighLayerVias(vector<parser::Wire>& wires, int X, int Y,
     tmpWire.width = viaLength;
     tmpWire.numPathPoint = 2;
     tmpWire.coorX[0] = X;
-    tmpWire.coorY[0] = ystart - viaDistance;
+    tmpWire.coorY[0] = ystart - viaDistance / 2;
     tmpWire.coorX[1] = X;
-    tmpWire.coorY[1] = yend + viaDistance;
+    tmpWire.coorY[1] = yend + viaDistance / 2;
     wires.push_back(tmpWire);
     
 }
