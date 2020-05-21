@@ -62,6 +62,7 @@ void readCluster(string clusterFileName) {
     vector<int> yPW;
     vector<int> yGND;
     int pre_ux = 0;
+    int width = 0;
     while(!infile.eof()) {
         infile >> tmp1 >> tmp2;
         if(tmp1 == "STRIP") {
@@ -74,9 +75,10 @@ void readCluster(string clusterFileName) {
 
             if(pre_ux == 0)
                 defDB.pwgnd.xMesh.push_back(lx);//first gnd       
-            else
+            else {
                 defDB.pwgnd.xMesh.push_back((lx + pre_ux)/2); 
-            
+                width = lx - pre_ux;
+            }
             pre_ux = ux;
 
             yPW.clear();
@@ -108,15 +110,15 @@ void readCluster(string clusterFileName) {
         }
     }
     
-    defDB.pwgnd.xMesh.push_back(ux);       
+    defDB.pwgnd.xMesh.push_back(ux + width / 2);       
 
-    /*cout << "gndx: ";
-    for(int i = 0; i < defDB.pwgnd.xMesh.size(); i += 2) {
+    cout << "x: ";
+    for(int i = 0; i < defDB.pwgnd.xMesh.size(); i++) {
         cout << defDB.pwgnd.xMesh[i] << " ";
     }
     cout << endl;
 
-    cout << "powerx: ";
+    /*cout << "powerx: ";
     for(int i = 1; i < defDB.pwgnd.xMesh.size(); i += 2) {
         cout << defDB.pwgnd.xMesh[i] << " ";
     }
@@ -478,15 +480,13 @@ void routeHighLayerSNet(string signal) {
     yrange.end = tmpWire.coorY[0] + width / 2; 
     yranges.push_back(yrange);
     
-    int xstart = (signal == "POWER")? 1 : 0;
-
     for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
         int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
         string viaName = lefDB.vias[viaIdx].name;
-        for(int j = xstart; j < xMesh.size(); j += 2) {
-            int xpos = xMesh[j];
+        for(int j = 0; j < xMesh.size(); j ++) {
+            int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
             placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
         }
     }
@@ -511,8 +511,8 @@ void routeHighLayerSNet(string signal) {
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
         string viaName = lefDB.vias[viaIdx].name;
-        for(int j = xstart; j < xMesh.size(); j += 2) {
-            int xpos = xMesh[j];
+        for(int j = 0; j < xMesh.size(); j ++) {
+            int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
             placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
         }
     } 
@@ -536,8 +536,8 @@ void routeHighLayerSNet(string signal) {
         string topLayerName = lefDB.layers[i].name;
         int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
         string viaName = lefDB.vias[viaIdx].name;
-        for(int j = xstart; j < xMesh.size(); j += 2) {
-            int xpos = xMesh[j];
+        for(int j = 0; j < xMesh.size(); j ++) {
+            int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
             placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
         }
     } 
@@ -613,24 +613,24 @@ void routeLowLayerMesh(string signal) {
     int hLayerID = lefDB.layer2idx[hLayerName];
     
     int width = pwgnd.width;
+    int xoffset = (signal == "POWER")? width : (-1) * width; 
     
     auto& xMesh = pwgnd.xMesh;
     auto& yMesh = (signal == "POWER")? pwgnd.poweryMesh : pwgnd.gndyMesh;
+    auto& opyMesh = (signal == "POWER")? pwgnd.gndyMesh : pwgnd.poweryMesh;
     auto& wires = (signal == "POWER")? pwgnd.powerWires : pwgnd.gndWires;
 
-    int xstart = (signal == "POWER")? 1 : 0;
-    
     int safeDistance = safeBoundaryDistance();
-    xMesh[0] = dieArea.lowerLeft.x + safeDistance;
+    /*xMesh[0] = dieArea.lowerLeft.x + safeDistance;
     xMesh[xMesh.size() - 1] = dieArea.upperRight.x - safeDistance;
-    
-    for(int i = xstart; i < xMesh.size(); i += 2) {
+    */
+    for(int i = 0; i < xMesh.size(); i++) {
         tmpWire.layerName = vLayerName;
         tmpWire.width = width;
         
-        tmpWire.coorX[0] = xMesh[i];
+        tmpWire.coorX[0] = xMesh[i] + xoffset;
         tmpWire.coorY[0] = dieArea.lowerLeft.y;
-        tmpWire.coorX[1] = xMesh[i];
+        tmpWire.coorX[1] = xMesh[i] + xoffset;
         tmpWire.coorY[1] = dieArea.upperRight.y;
         tmpWire.numPathPoint = 2;
         wires.push_back(tmpWire);
@@ -638,58 +638,96 @@ void routeLowLayerMesh(string signal) {
 
     int left_offset, right_offset;
        
-
     for(int i = 0; i < yMesh.size(); i++) {
-        if((signal == "POWER" &&  i % 2 == 0) || (signal == "GROUND" && i % 2 == 1)) {
-            left_offset = 2 * width;
-            right_offset = 0;
-        }
-        else {
-            left_offset = 0;
-            right_offset = - 2 * width;
-        }
         
+                  
         for(int j = 0; j < yMesh[i].size(); j++) {
-            tmpWire.coorX[0] = xMesh[i] + left_offset;
-            tmpWire.coorX[1] = xMesh[i + 1] + right_offset;
             if(yMesh[i][j] + safeDistance >= dieArea.upperRight.y) {
                 yMesh[i][j] = dieArea.upperRight.y - safeDistance;
             }
             else if(yMesh[i][j] - safeDistance <= dieArea.lowerLeft.y) {
                 yMesh[i][j] = dieArea.lowerLeft.y + safeDistance;
+            }     
+            bool hasLeftConflict = false;
+            if(signal == "GROUND" && i != 0) {
+                for(int posy : opyMesh[i - 1]) {
+                    if(abs(posy - yMesh[i][j]) <= width) {
+                        hasLeftConflict = true;
+                        break;
+                    }
+                }
             }
             
-            if(left_offset == 0)
-                tmpWire.coorX[0] -= width / 2;
-            else
-                tmpWire.coorX[1] += width / 2;
-            
-            tmpWire.coorY[0] = yMesh[i][j];
-            tmpWire.coorY[1] = yMesh[i][j];
-            tmpWire.layerName = hLayerName;
-            tmpWire.width = width;
-            tmpWire.numPathPoint = 2;
-            wires.push_back(tmpWire);
+            if(hasLeftConflict) {
+                tmpWire.coorX[0] = xMesh[i] + 2.5 * width;
+                tmpWire.coorX[1] = xMesh[i + 1] + xoffset + width / 2;
+                
+           
+                tmpWire.coorY[0] = yMesh[i][j];
+                tmpWire.coorY[1] = yMesh[i][j];
+                tmpWire.layerName = hLayerName;
+                tmpWire.width = width;
+                tmpWire.numPathPoint = 2;
+                wires.push_back(tmpWire);
+                
+                tmpWire.coorX[0] = xMesh[i] + 3 * width;
+                tmpWire.coorX[1] = xMesh[i] + 3 * width;
+                tmpWire.coorY[0] = yMesh[i][j] + width / 2;
+                tmpWire.coorY[1] = yMesh[i][j] + 3 * width;
+                wires.push_back(tmpWire);
+
+                tmpWire.coorX[0] = xMesh[i] - 1.5 * width;
+                tmpWire.coorX[1] = xMesh[i] + 3.5 * width;
+                tmpWire.coorY[0] = yMesh[i][j] + 3.5 * width;
+                tmpWire.coorY[1] = yMesh[i][j] + 3.5 * width;
+                wires.push_back(tmpWire);
 
 
-            tmpWire.numPathPoint = 1;
-            tmpWire.layerName = vLayerName;
-            int viaID = lefDB.topLayerIdx2ViaIdx[vLayerID]; //M4-M5
-            tmpWire.viaName = lefDB.vias[viaID].name;
-            if(left_offset == 0) {
-
+                tmpWire.coorX[0] = xMesh[i] - width;
+                tmpWire.coorY[0] = yMesh[i][j] + 3.5 * width;
+                tmpWire.numPathPoint = 1;
+                tmpWire.layerName = vLayerName;
+                int viaID = lefDB.topLayerIdx2ViaIdx[vLayerID]; //M4-M5
+                tmpWire.viaName = lefDB.vias[viaID].name;
+                tmpWire.width = 0;
+                wires.push_back(tmpWire);
             }
             else {
-                tmpWire.coorX[0] = tmpWire.coorX[1];
-                //y remains the same
+
+                tmpWire.coorX[0] = xMesh[i] + xoffset - width / 2;
+                tmpWire.coorX[1] = xMesh[i + 1] + xoffset + width / 2;
+                if(yMesh[i][j] + safeDistance >= dieArea.upperRight.y) {
+                    yMesh[i][j] = dieArea.upperRight.y - safeDistance;
+                }
+                else if(yMesh[i][j] - safeDistance <= dieArea.lowerLeft.y) {
+                    yMesh[i][j] = dieArea.lowerLeft.y + safeDistance;
+                }
+            
+                tmpWire.coorY[0] = yMesh[i][j];
+                tmpWire.coorY[1] = yMesh[i][j];
+                tmpWire.layerName = hLayerName;
+                tmpWire.width = width;
+                tmpWire.numPathPoint = 2;
+                wires.push_back(tmpWire);
+            
+                
+                tmpWire.numPathPoint = 1;
+                tmpWire.layerName = vLayerName;
+                int viaID = lefDB.topLayerIdx2ViaIdx[vLayerID]; //M4-M5
+                tmpWire.viaName = lefDB.vias[viaID].name;
+            
+                tmpWire.coorX[0] = xMesh[i] + xoffset;
+                tmpWire.coorY[0] = yMesh[i][j];
+                tmpWire.width = 0;
+                wires.push_back(tmpWire); 
+            
             }
 
-            if(left_offset == 0)
-                tmpWire.coorX[0] += width / 2;
-            else
-                tmpWire.coorX[0] -= width / 2;
-            
+                       
 #ifdef HORIZONTAL_M4
+            tmpWire.coorX[0] = xMesh[i + 1] + xoffset;
+            tmpWire.coorY[0] = yMesh[i][j];
+            tmpWire.width = 0;
             wires.push_back(tmpWire); // M4-M5 will always not be covered
 #else   
             
