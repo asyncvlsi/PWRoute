@@ -659,7 +659,7 @@ void routeLowLayerMesh(string signal) {
             }
             
             if(hasLeftConflict) {
-                tmpWire.coorX[0] = xMesh[i] + 2.5 * width;
+                tmpWire.coorX[0] = xMesh[i] + 2 * width;
                 tmpWire.coorX[1] = xMesh[i + 1] + xoffset + width / 2;
                 
            
@@ -670,14 +670,14 @@ void routeLowLayerMesh(string signal) {
                 tmpWire.numPathPoint = 2;
                 wires.push_back(tmpWire);
                 
-                tmpWire.coorX[0] = xMesh[i] + 3 * width;
-                tmpWire.coorX[1] = xMesh[i] + 3 * width;
+                tmpWire.coorX[0] = xMesh[i] + 2.5 * width;
+                tmpWire.coorX[1] = xMesh[i] + 2.5 * width;
                 tmpWire.coorY[0] = yMesh[i][j] + width / 2;
                 tmpWire.coorY[1] = yMesh[i][j] + 3 * width;
                 wires.push_back(tmpWire);
 
                 tmpWire.coorX[0] = xMesh[i] - 1.5 * width;
-                tmpWire.coorX[1] = xMesh[i] + 3.5 * width;
+                tmpWire.coorX[1] = xMesh[i] + 3 * width;
                 tmpWire.coorY[0] = yMesh[i][j] + 3.5 * width;
                 tmpWire.coorY[1] = yMesh[i][j] + 3.5 * width;
                 wires.push_back(tmpWire);
