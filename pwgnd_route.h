@@ -8,13 +8,17 @@ extern parser::lefDataBase lefDB;
 extern parser::defDataBase defDB;
 
 
-#define MESH_MULTIPLE 2
+#define HIGHMESH_MULTIPLE 8
+#define LOWMESH_MULTIPLE 2
 int POWER_FOUND = 0;
 int POWER_UNFOUND = 0;
 int GROUND_FOUND = 0;
 int GROUND_UNFOUND = 0;
 
 #define HORIZONTAL_M4 1
+
+#define HighHLayer 10 //M6
+
 
 /*void simplePWGNDMesh() {
 	cout << "route pwgnd" << endl;
@@ -169,7 +173,7 @@ void SNetConfig(string clusterFileName) {
     int v = rect.upperRight.y - rect.lowerLeft.y;
     int viaLength = (h > v)? h : v;
     viaLength *= defDB.dbuPerMicro;
-    defDB.pwgnd.width = max(MESH_MULTIPLE * defDB.pwgnd.layerWidth, viaLength);
+    defDB.pwgnd.width = max(LOWMESH_MULTIPLE * defDB.pwgnd.layerWidth, viaLength);
 
     defDB.pwgnd.width = fitGrid(defDB.pwgnd.width);
 
@@ -195,14 +199,16 @@ void SNetConfig(string clusterFileName) {
     cout << "vertical: " << defDB.pwgnd.vLayerName << endl;
     cout << "horizontal: " << defDB.pwgnd.hLayerName << endl;
 
-    for(int i = lefDB.layers.size() - 1; i >= 0; i--) {
+    /*for(int i = lefDB.layers.size() - 1; i >= 0; i--) {
         if(lefDB.layers[i].direction == "HORIZONTAL") {
             defDB.pwgnd.lastHLayerID = i;
             defDB.pwgnd.lastHLayerName = lefDB.layers[i].name;
             break;
         }
-    }
-    cout << "last H layer: " << defDB.pwgnd.lastHLayerName << endl;
+    }*/
+    defDB.pwgnd.lastHLayerID = HighHLayer;
+    defDB.pwgnd.lastHLayerName = lefDB.layers[HighHLayer].name;
+    cout << "High H layer: " << defDB.pwgnd.lastHLayerName << endl;
 }
 
 
@@ -433,8 +439,8 @@ void routeHighLayerSNet(string signal) {
     parser::Rect2D<int> dieArea = defDB.dieArea;
     string lastHLayerName = defDB.pwgnd.lastHLayerName;
     int lastHLayerID = defDB.pwgnd.lastHLayerID;
-    int width = lefDB.layers[lastHLayerID].width * defDB.dbuPerMicro * MESH_MULTIPLE;
-    int pitch = lefDB.layers[lastHLayerID].pitchy * defDB.dbuPerMicro * MESH_MULTIPLE;
+    int width = lefDB.layers[lastHLayerID].width * defDB.dbuPerMicro * HIGHMESH_MULTIPLE;
+    int pitch = lefDB.layers[lastHLayerID].pitchy * defDB.dbuPerMicro * HIGHMESH_MULTIPLE;
     width = fitGrid(width);
     pitch = fitGrid(pitch);
     
