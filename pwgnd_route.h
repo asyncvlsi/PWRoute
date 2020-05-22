@@ -9,6 +9,7 @@ extern parser::defDataBase defDB;
 
 
 #define HIGHMESH_MULTIPLE 8
+#define HIGHMESH_STEP 8
 #define LOWMESH_MULTIPLE 2
 int POWER_FOUND = 0;
 int POWER_UNFOUND = 0;
@@ -434,115 +435,6 @@ void placeHighLayerVias(vector<parser::Wire>& wires, int X, int Y,
     
 }
 
-void routeHighLayerSNet(string signal) {
-    parser::Wire tmpWire;
-
-    parser::PWGND& pwgnd = defDB.pwgnd;
-    parser::Rect2D<int> dieArea = defDB.dieArea;
-    string lastHLayerName = defDB.pwgnd.lastHLayerName;
-    int lastHLayerID = defDB.pwgnd.lastHLayerID;
-    int width = lefDB.layers[lastHLayerID].width * defDB.dbuPerMicro * HIGHMESH_MULTIPLE;
-    int pitch = lefDB.layers[lastHLayerID].pitchy * defDB.dbuPerMicro * HIGHMESH_MULTIPLE;
-    width = fitGrid(width);
-    pitch = fitGrid(pitch);
-    
-    int offset;
-    int midoffset;
-    
-    parser::Range<int> yrange; 
-    int viaDistance = (lefDB.layers[lastHLayerID - 1].width + lefDB.layers[lastHLayerID - 1].spacing) * defDB.dbuPerMicro; 
-    
-    if(signal == "POWER") {
-        offset = 2 * pitch + width / 2;
-        midoffset = pitch + width / 2;
-    }
-    else {
-        offset = pitch;
-        midoffset = - pitch + width / 2;
-    }
-    auto& xMesh = pwgnd.xMesh;
-    auto& wires = (signal == "POWER")? pwgnd.powerWires : pwgnd.gndWires;
-    auto& yranges = (signal == "POWER")? pwgnd.powerHighLayerY : pwgnd.gndHighLayerY;
-
-    string vLayerName = pwgnd.vLayerName;
-    int vlayerID = lefDB.layer2idx[vLayerName];
-
-    tmpWire.layerName = lastHLayerName;
-    tmpWire.width = width;
-    tmpWire.coorX[0] = dieArea.lowerLeft.x;
-    tmpWire.coorY[0] = dieArea.lowerLeft.y + offset;
-    tmpWire.coorX[1] = dieArea.upperRight.x;
-    tmpWire.coorY[1] = dieArea.lowerLeft.y + offset;
-    tmpWire.numPathPoint = 2;
-    wires.push_back(tmpWire);
-
-    yrange.start = tmpWire.coorY[0] - width / 2; 
-    yrange.end = tmpWire.coorY[0] + width / 2; 
-    yranges.push_back(yrange);
-    
-    for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
-        int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
-        string topLayerName = lefDB.layers[i].name;
-        int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
-        string viaName = lefDB.vias[viaIdx].name;
-        for(int j = 0; j < xMesh.size(); j ++) {
-            int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
-            placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
-        }
-    }
-
- 
-    tmpWire.layerName = lastHLayerName;
-    tmpWire.width = width;
-    tmpWire.coorX[0] = dieArea.lowerLeft.x;
-    tmpWire.coorY[0] = dieArea.upperRight.y - offset;
-    tmpWire.coorX[1] = dieArea.upperRight.x;
-    tmpWire.coorY[1] = dieArea.upperRight.y - offset;
-    tmpWire.numPathPoint = 2;
-    
-    wires.push_back(tmpWire);   
-    yrange.start = tmpWire.coorY[0] - width / 2; 
-    yrange.end = tmpWire.coorY[0] + width / 2; 
-    yranges.push_back(yrange);
-    
-
-   for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
-        int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
-        string topLayerName = lefDB.layers[i].name;
-        int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
-        string viaName = lefDB.vias[viaIdx].name;
-        for(int j = 0; j < xMesh.size(); j ++) {
-            int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
-            placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
-        }
-    } 
-       
-    tmpWire.layerName = lastHLayerName;
-    tmpWire.width = width;
-    tmpWire.coorX[0] = dieArea.lowerLeft.x;
-    tmpWire.coorY[0] = (dieArea.lowerLeft.y + dieArea.upperRight.y) / 2 - offset;
-    tmpWire.coorX[1] = dieArea.upperRight.x;
-    tmpWire.coorY[1] = (dieArea.lowerLeft.y + dieArea.upperRight.y) / 2 - offset;
-    tmpWire.numPathPoint = 2;
-    
-    wires.push_back(tmpWire);   
-    yrange.start = tmpWire.coorY[0] - width / 2; 
-    yrange.end = tmpWire.coorY[0] + width / 2; 
-    yranges.push_back(yrange);
-    
-
-   for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
-        int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
-        string topLayerName = lefDB.layers[i].name;
-        int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
-        string viaName = lefDB.vias[viaIdx].name;
-        for(int j = 0; j < xMesh.size(); j ++) {
-            int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
-            placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
-        }
-    } 
-}
-
 int safeBoundaryDistance() {
     parser::lefVia V1 = lefDB.vias[lefDB.topLayerIdx2ViaIdx[2]]; //M1-M2 
     parser::lefVia V2 = lefDB.vias[lefDB.topLayerIdx2ViaIdx[4]]; //M2-M3
@@ -567,6 +459,100 @@ int safeBoundaryDistance() {
     }
     cout << "maxBoundaryDistance: " << maxDistance << endl;
     return maxDistance * defDB.dbuPerMicro; 
+}
+
+
+void routeHighLayerSNet(string signal) {
+    parser::Wire tmpWire;
+
+    parser::PWGND& pwgnd = defDB.pwgnd;
+    parser::Rect2D<int> dieArea = defDB.dieArea;
+    string lastHLayerName = defDB.pwgnd.lastHLayerName;
+    int lastHLayerID = defDB.pwgnd.lastHLayerID;
+    int width = lefDB.layers[lastHLayerID].width * defDB.dbuPerMicro * HIGHMESH_MULTIPLE;
+    int pitch = lefDB.layers[lastHLayerID].pitchy * defDB.dbuPerMicro * HIGHMESH_MULTIPLE;
+    int step = (2 * pitch) * HIGHMESH_STEP;
+    int safeDistance = safeBoundaryDistance();
+    int nReinforcement = (defDB.dieArea.upperRight.y - defDB.dieArea.lowerLeft.y - 2 * (pitch + safeDistance)) / step + 1;
+    width = fitGrid(width);
+    pitch = fitGrid(pitch);
+    
+    int offset;
+    int midoffset;
+    
+    parser::Range<int> yrange; 
+    int viaDistance = (lefDB.layers[lastHLayerID - 1].width + lefDB.layers[lastHLayerID - 1].spacing) * defDB.dbuPerMicro; 
+    
+    if(signal == "POWER") {
+        offset = pitch;
+    }
+    else {
+        offset = - pitch;
+    }
+    auto& xMesh = pwgnd.xMesh;
+    auto& wires = (signal == "POWER")? pwgnd.powerWires : pwgnd.gndWires;
+    auto& yranges = (signal == "POWER")? pwgnd.powerHighLayerY : pwgnd.gndHighLayerY;
+
+    string vLayerName = pwgnd.vLayerName;
+    int vlayerID = lefDB.layer2idx[vLayerName];
+
+
+    for(int i = 0; i < nReinforcement; i++) {
+        tmpWire.layerName = lastHLayerName;
+        tmpWire.width = width;
+        tmpWire.coorX[0] = dieArea.lowerLeft.x;
+        tmpWire.coorY[0] = dieArea.lowerLeft.y + offset + i * step + pitch + safeDistance + width / 2;
+        tmpWire.coorX[1] = dieArea.upperRight.x;
+        tmpWire.coorY[1] = dieArea.lowerLeft.y + offset + i * step + pitch + safeDistance + width / 2;
+        tmpWire.numPathPoint = 2;
+        wires.push_back(tmpWire);
+
+        yrange.start = tmpWire.coorY[0] - width / 2; 
+        yrange.end = tmpWire.coorY[0] + width / 2; 
+        yranges.push_back(yrange);
+    
+        for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
+            int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
+            string topLayerName = lefDB.layers[i].name;
+            int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
+            string viaName = lefDB.vias[viaIdx].name;
+            for(int j = 0; j < xMesh.size(); j ++) {
+                int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
+                placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+            }
+        }
+    }
+
+    int lasty = dieArea.lowerLeft.y + pitch + (nReinforcement - 1) * step + pitch + safeDistance + width / 2; 
+   
+
+    if(dieArea.upperRight.y - lasty > 2 * pitch + safeDistance + width / 2) {
+        //cout << "enter extra" << endl;
+        tmpWire.layerName = lastHLayerName;
+        tmpWire.width = width;
+        tmpWire.coorX[0] = dieArea.lowerLeft.x;
+        tmpWire.coorY[0] = dieArea.upperRight.y + offset - pitch - safeDistance - width / 2;
+        tmpWire.coorX[1] = dieArea.upperRight.x;
+        tmpWire.coorY[1] = dieArea.upperRight.y + offset - pitch - safeDistance - width / 2;
+        tmpWire.numPathPoint = 2;
+        wires.push_back(tmpWire);
+
+        yrange.start = tmpWire.coorY[0] - width / 2; 
+        yrange.end = tmpWire.coorY[0] + width / 2; 
+        yranges.push_back(yrange);
+    
+        for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
+            int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
+            string topLayerName = lefDB.layers[i].name;
+            int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
+            string viaName = lefDB.vias[viaIdx].name;
+            for(int j = 0; j < xMesh.size(); j ++) {
+                int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
+                placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+            }
+        }
+    }
+
 }
 
 bool nearHighLayerViaRange(string signal, int ypos, int& midRange) {
