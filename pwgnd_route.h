@@ -457,7 +457,7 @@ int safeBoundaryDistance() {
             maxDistance = (maxDistance > fabs(rect.upperRight.y))? maxDistance : fabs(rect.upperRight.y);
        }
     }
-    cout << "maxBoundaryDistance: " << maxDistance << endl;
+    //cout << "maxBoundaryDistance: " << maxDistance << endl;
     return maxDistance * defDB.dbuPerMicro; 
 }
 
@@ -496,34 +496,36 @@ void routeHighLayerSNet(string signal) {
     string vLayerName = pwgnd.vLayerName;
     int vlayerID = lefDB.layer2idx[vLayerName];
 
+    if((nReinforcement == 1 && defDB.dieArea.upperRight.y - defDB.dieArea.lowerLeft.y > 3 * pitch + 2 * safeDistance) ||
+            nReinforcement > 1) {
+        
+        for(int i = 0; i < nReinforcement; i++) {
+            tmpWire.layerName = lastHLayerName;
+            tmpWire.width = width;
+            tmpWire.coorX[0] = dieArea.lowerLeft.x;
+            tmpWire.coorY[0] = dieArea.lowerLeft.y + offset + i * step + pitch + safeDistance + width / 2;
+            tmpWire.coorX[1] = dieArea.upperRight.x;
+            tmpWire.coorY[1] = dieArea.lowerLeft.y + offset + i * step + pitch + safeDistance + width / 2;
+            tmpWire.numPathPoint = 2;
+            wires.push_back(tmpWire);
 
-    for(int i = 0; i < nReinforcement; i++) {
-        tmpWire.layerName = lastHLayerName;
-        tmpWire.width = width;
-        tmpWire.coorX[0] = dieArea.lowerLeft.x;
-        tmpWire.coorY[0] = dieArea.lowerLeft.y + offset + i * step + pitch + safeDistance + width / 2;
-        tmpWire.coorX[1] = dieArea.upperRight.x;
-        tmpWire.coorY[1] = dieArea.lowerLeft.y + offset + i * step + pitch + safeDistance + width / 2;
-        tmpWire.numPathPoint = 2;
-        wires.push_back(tmpWire);
-
-        yrange.start = tmpWire.coorY[0] - width / 2; 
-        yrange.end = tmpWire.coorY[0] + width / 2; 
-        yranges.push_back(yrange);
+            yrange.start = tmpWire.coorY[0] - width / 2; 
+            yrange.end = tmpWire.coorY[0] + width / 2; 
+            yranges.push_back(yrange);
     
-        for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
-            int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
-            string topLayerName = lefDB.layers[i].name;
-            int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
-            string viaName = lefDB.vias[viaIdx].name;
-            for(int j = 0; j < xMesh.size(); j ++) {
-                int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
-                placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+            for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
+                int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
+                string topLayerName = lefDB.layers[i].name;
+                int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
+                string viaName = lefDB.vias[viaIdx].name;
+                for(int j = 0; j < xMesh.size(); j ++) {
+                    int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
+                    placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+                }
             }
         }
-    }
-
-    int lasty = dieArea.lowerLeft.y + pitch + (nReinforcement - 1) * step + pitch + safeDistance + width / 2; 
+        
+        int lasty = dieArea.lowerLeft.y + pitch + (nReinforcement - 1) * step + pitch + safeDistance + width / 2; 
    
 
     if(dieArea.upperRight.y - lasty > 2 * pitch + safeDistance + width / 2) {
@@ -551,6 +553,34 @@ void routeHighLayerSNet(string signal) {
                 placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
             }
         }
+        }
+    }
+    else {
+        tmpWire.layerName = lastHLayerName;
+            tmpWire.width = width;
+            tmpWire.coorX[0] = dieArea.lowerLeft.x;
+            tmpWire.coorY[0] = (dieArea.lowerLeft.y + dieArea.upperRight.y) / 2 + offset + width / 2;
+            tmpWire.coorX[1] = dieArea.upperRight.x;
+            tmpWire.coorY[1] = (dieArea.lowerLeft.y + dieArea.upperRight.y) / 2 + offset + width / 2;
+            tmpWire.numPathPoint = 2;
+            wires.push_back(tmpWire);
+
+            yrange.start = tmpWire.coorY[0] - width / 2; 
+            yrange.end = tmpWire.coorY[0] + width / 2; 
+            yranges.push_back(yrange);
+    
+            for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
+                int viaIdx = lefDB.topLayerIdx2ViaIdx[i];
+                string topLayerName = lefDB.layers[i].name;
+                int layerWidth = lefDB.layers[i].width * defDB.dbuPerMicro;
+                string viaName = lefDB.vias[viaIdx].name;
+                for(int j = 0; j < xMesh.size(); j ++) {
+                    int xpos = (signal == "POWER")? xMesh[j] + defDB.pwgnd.width : xMesh[j] - defDB.pwgnd.width;
+                    placeHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+                }
+            }
+
+
     }
 
 }
@@ -758,7 +788,11 @@ void findRowSNet(parser::Rect2D<float> rect, int& powerY, int& gndY) {
             break;
         }
     }
-    assert(column >= 0);
+    if(column == -1) {
+        cout << "ERROR: Pin's X is not in any column!" << endl;
+        cout << rect << endl;
+        exit(1);
+    }
     
     auto& poweryMesh = defDB.pwgnd.poweryMesh[column];
     auto& gndyMesh = defDB.pwgnd.gndyMesh[column];
