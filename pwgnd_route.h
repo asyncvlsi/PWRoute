@@ -60,22 +60,23 @@ void readCluster(string clusterFileName) {
     string tmp1, tmp2, tmp3;
     int lx, ux, ly, uy;
     int cnt_y = 0, cnt_x = 0;
-    vector<int> yPW;
-    vector<int> yGND;
-    int pre_ux = 0;
+    set<int> yPW;
+    set<int> yGND;
+    int pre_ux = 0, pre_uy;
     int width = 0;
     while(!infile.eof()) {
         infile >> tmp1 >> tmp2;
         if(tmp1 == "STRIP") {
             infile >> lx >> ux >> tmp3;
             defDB.pwgnd.startSNet.push_back(tmp3);
+            pre_uy = 0;
             if(tmp3 == "GND")   
                 cnt_y = 0;
             else
                 cnt_y = 1;
 
             if(pre_ux == 0)
-                defDB.pwgnd.xMesh.push_back(lx);//first gnd       
+                defDB.pwgnd.xMesh.push_back((lx + defDB.dieArea.lowerLeft.x) / 2);//first gnd       
             else {
                 defDB.pwgnd.xMesh.push_back((lx + pre_ux)/2); 
                 width = lx - pre_ux;
@@ -86,32 +87,41 @@ void readCluster(string clusterFileName) {
             yGND.clear();
         }
         else if(tmp1 == "END") {
-            if(cnt_y % 2 == 0) {
-                yGND.push_back(uy);       
-            }
-            else {
-                yPW.push_back(uy);
-            }
-            defDB.pwgnd.poweryMesh.push_back(yPW);
-            defDB.pwgnd.gndyMesh.push_back(yGND);
+            vector<int> tmpPW;
+            vector<int> tmpGND;
+            for(auto y : yGND)
+                tmpGND.push_back(y);
+            sort(tmpGND.begin(), tmpGND.end());
+
+            for(auto y : yPW)
+                tmpPW.push_back(y);
+            sort(tmpPW.begin(), tmpPW.end()); //ascending order
+            
+            defDB.pwgnd.poweryMesh.push_back(tmpPW);
+            defDB.pwgnd.gndyMesh.push_back(tmpGND);
             cnt_x++;
             //cout << " cnt_x: " << cnt_x << endl;
             tmp1.clear();
         }
         else {
             ly = atoi(tmp1.c_str());
+            if(pre_uy != 0 && ly != pre_uy)
+                ly = pre_uy;
             uy = atoi(tmp2.c_str());
+            pre_uy = uy;
             if(cnt_y % 2 == 0) {
-                yGND.push_back(ly);       
+                yGND.insert(ly);
+                yPW.insert(uy);
             }
             else {
-                yPW.push_back(ly);
+                yPW.insert(ly);
+                yGND.insert(uy);
             }
             cnt_y++;
         }
     }
     
-    defDB.pwgnd.xMesh.push_back(ux + width / 2);       
+    defDB.pwgnd.xMesh.push_back((ux + defDB.dieArea.upperRight.x) / 2);       
 
     /*cout << "x: ";
     for(int i = 0; i < defDB.pwgnd.xMesh.size(); i++) {
@@ -686,27 +696,35 @@ void routeLowLayerMesh(string signal) {
                 tmpWire.numPathPoint = 2;
                 wires.push_back(tmpWire);
                 
+                int moveup;
+                if(yMesh[i][j] + 3 * width < defDB.dieArea.upperRight.y)  
+                    moveup = 1;
+                else 
+                    moveup = -1;
+
                 tmpWire.coorX[0] = xMesh[i] + 2.5 * width;
                 tmpWire.coorX[1] = xMesh[i] + 2.5 * width;
-                tmpWire.coorY[0] = yMesh[i][j] + width / 2;
-                tmpWire.coorY[1] = yMesh[i][j] + 3 * width;
+                tmpWire.coorY[0] = yMesh[i][j] + moveup * width / 2;
+                tmpWire.coorY[1] = yMesh[i][j] + moveup * 3 * width;
                 wires.push_back(tmpWire);
 
                 tmpWire.coorX[0] = xMesh[i] - 1.5 * width;
                 tmpWire.coorX[1] = xMesh[i] + 3 * width;
-                tmpWire.coorY[0] = yMesh[i][j] + 3.5 * width;
-                tmpWire.coorY[1] = yMesh[i][j] + 3.5 * width;
+                tmpWire.coorY[0] = yMesh[i][j] + moveup * 3.5 * width;
+                tmpWire.coorY[1] = yMesh[i][j] + moveup * 3.5 * width;
                 wires.push_back(tmpWire);
 
 
                 tmpWire.coorX[0] = xMesh[i] - width;
-                tmpWire.coorY[0] = yMesh[i][j] + 3.5 * width;
+                tmpWire.coorY[0] = yMesh[i][j] + moveup * 3.5 * width;
                 tmpWire.numPathPoint = 1;
                 tmpWire.layerName = vLayerName;
                 int viaID = lefDB.topLayerIdx2ViaIdx[vLayerID]; //M4-M5
                 tmpWire.viaName = lefDB.vias[viaID].name;
                 tmpWire.width = 0;
                 wires.push_back(tmpWire);
+                
+
             }
             else {
 
@@ -775,7 +793,7 @@ void routeLowLayerMesh(string signal) {
     }
 }
 
-void findRowSNet(parser::Rect2D<float> rect, int& powerY, int& gndY) {
+void findRowSNet(string componentName, string pinName, parser::Rect2D<float> rect, int& powerY, int& gndY) {
     Point2D<int> midPoint;
     midPoint.x = (rect.lowerLeft.x + rect.upperRight.x) / 2;
     midPoint.y = (rect.lowerLeft.y + rect.upperRight.y) / 2;
@@ -790,7 +808,8 @@ void findRowSNet(parser::Rect2D<float> rect, int& powerY, int& gndY) {
     }
     if(column == -1) {
         cout << "ERROR: Pin's X is not in any column!" << endl;
-        cout << rect << endl;
+        cout << componentName << "/" << pinName << endl;
+        cout << "Pin: " << rect << endl;
         exit(1);
     }
     
@@ -800,7 +819,12 @@ void findRowSNet(parser::Rect2D<float> rect, int& powerY, int& gndY) {
     auto powerit = std::upper_bound (poweryMesh.begin(), poweryMesh.end(), midPoint.y);  
     auto gndit = std::upper_bound (gndyMesh.begin(), gndyMesh.end(), midPoint.y);
 
-
+    if(powerit == poweryMesh.begin() && gndit == gndyMesh.begin()) {
+        cout << "ERROR: Pin's Y is not in any row!" << endl;
+        cout << componentName << "/" << pinName << endl;
+        cout << "Pin: " << rect << endl;
+        exit(1);
+    }
 
     if(powerit == poweryMesh.end() || gndit == gndyMesh.end()) {
         powerY = poweryMesh[poweryMesh.size() - 1];
@@ -1825,7 +1849,7 @@ bool M1DetailedRouteSNet(parser::Component& component, string signal, int signal
 void detailedRouteSNetComp(parser::Component& component) {
     int powerY, gndY;
     if(component.macro.pins.size() != 0)
-        findRowSNet(component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
+        findRowSNet(component.name, component.macro.pins[0].name, component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
     else
         return;
 
@@ -1874,7 +1898,7 @@ void detailedRouteSNetComp(parser::Component& component) {
 void markUnusablePointComp(parser::Component& component) {
     int powerY, gndY;
     if(component.macro.pins.size() != 0)
-        findRowSNet(component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
+        findRowSNet(component.name, component.macro.pins[0].name, component.macro.pins[0].layerRects[0].rects[0], powerY, gndY);
     else
         return;
 
