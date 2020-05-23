@@ -451,7 +451,7 @@ int getDefString(defrCallbackType_e type, const char* str, defiUserData data) {
     ((parser::defDataBase*) data)->designName = string(str);
 
     if (enableOutput) {
-      cout <<"DESIGN " << string(str) <<" ;" <<endl;
+      cout <<"reading def: DESIGN " << string(str) <<endl;
     }
   }
   return 0;
@@ -492,7 +492,7 @@ int getDefVoid(defrCallbackType_e type, void* variable, defiUserData data) {
   if ((type == defrDesignEndCbkType)) {
 
     if (enableOutput) {
-      cout <<"END DESIGN" <<endl;
+      cout <<"reading def done" <<endl;
     }
   }
   return 0;
@@ -500,7 +500,7 @@ int getDefVoid(defrCallbackType_e type, void* variable, defiUserData data) {
 
 int getDefDieArea(defrCallbackType_e type, defiBox* box, defiUserData data) {
   //bool enableOutput = true;
-  bool enableOutput = true;
+  bool enableOutput = false;
   if ((type != defrDieAreaCbkType)) {
     cout <<"Type is not defrDieAreaCbkType!" <<endl;
     exit(1);
@@ -517,7 +517,7 @@ int getDefDieArea(defrCallbackType_e type, defiBox* box, defiUserData data) {
 
 int getDefUnits(defrCallbackType_e type, double number, defiUserData data) {
   //bool enableOutput = true;
-  bool enableOutput = true;
+  bool enableOutput = false;
   ((parser::defDataBase*) data)->dbuPerMicro = number;
   if (enableOutput) {
     cout <<"UNITS DISTANCE MICRONS " <<((parser::defDataBase*) data)->dbuPerMicro <<" ;" <<endl;

@@ -702,7 +702,7 @@ int getLefString(lefrCallbackType_e type, const char* str, lefiUserData data) {
 
 int getLefUnits(lefrCallbackType_e type, lefiUnits* units, lefiUserData data) {
   //bool enableOutput = true;
-  bool enableOutput = true;
+  bool enableOutput = false;
   ((parser::lefDataBase*) data)->dbuPerMicron = units->databaseNumber();
   if (enableOutput) {
     cout <<"DATABASE MICRONS " << ((parser::lefDataBase*) data)->dbuPerMicron <<endl;
@@ -1037,12 +1037,12 @@ int getLefLayers(lefrCallbackType_e type, lefiLayer* layer, lefiUserData data) {
 
     // read spacingTable
     if(layer->numSpacingTable() > 1)
-        cout << "Error: More than one spacing table!" << endl;
+        cout << "warning: More than one spacing table: " << tmpLayer.name << endl;
 
     for (int i = 0; i < layer->numSpacingTable(); ++i) {
         auto spTable = layer->spacingTable(i);
-        //if (spTable->isParallel()) {
-        if (spTable->parallel()) {
+        if (spTable->isParallel() == 1) {
+        //if (spTable->parallel()) {
             auto parallel = spTable->parallel();
 
             if (enableOutput) {
@@ -1062,8 +1062,10 @@ int getLefLayers(lefrCallbackType_e type, lefiLayer* layer, lefiUserData data) {
                 cout <<" ;" <<endl;
             }
         } 
-        else 
-        { 
+        else if(spTable->isInfluence()) {
+
+        }
+        else { 
             cout << "unsupported spacing table!" << endl;
         }
     }

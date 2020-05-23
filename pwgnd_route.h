@@ -113,7 +113,7 @@ void readCluster(string clusterFileName) {
     
     defDB.pwgnd.xMesh.push_back(ux + width / 2);       
 
-    cout << "x: ";
+    /*cout << "x: ";
     for(int i = 0; i < defDB.pwgnd.xMesh.size(); i++) {
         cout << defDB.pwgnd.xMesh[i] << " ";
     }
@@ -1839,7 +1839,7 @@ void detailedRouteSNetComp(parser::Component& component) {
         if(!M2power) {
             M1M3power = M1M3DetailedRouteSNet(component, "POWER", powerY, defDB.pwgnd.powerWires, powerPoint); 
             if(!M1M3power)
-                cout << "UNABLE TO PATTERN ROUTE POWER: " << component.name << endl;
+                cout << "warning: UNABLE TO PATTERN ROUTE POWER: " << component.name << endl;
         }
     }
     M1ground = M1DetailedRouteSNet(component, "GROUND", gndY, defDB.pwgnd.gndWires, powerPoint);
@@ -1848,7 +1848,7 @@ void detailedRouteSNetComp(parser::Component& component) {
         if(!M2ground) {
             M1M3ground = M1M3DetailedRouteSNet(component, "GROUND", gndY, defDB.pwgnd.gndWires, powerPoint); 
             if(!M1M3ground)
-                cout << "UNABLE TO PATTERN ROUTE GROUND: " << component.name << endl;
+                cout << "warning: UNABLE TO PATTERN ROUTE GROUND: " << component.name << endl;
         }
     }
 
@@ -2016,7 +2016,9 @@ void detailedRouteSNet() {
     for(auto& component : defDB.components) {
         detailedRouteSNetComp(component);
     }
-    cout << POWER_FOUND << " " << POWER_UNFOUND << " " << GROUND_FOUND << " " << GROUND_UNFOUND << endl;
+
+    cout << "Power routing completes/fails: " << POWER_FOUND << " / " << POWER_UNFOUND << endl;
+    cout << "Ground routing completes/fails: " << GROUND_FOUND << " / " << GROUND_UNFOUND << endl;
     
     M2MetalFill("POWER");
     M2MetalFill("GROUND");
@@ -2026,7 +2028,7 @@ void markUnusablePoint() {
     for(auto& component : defDB.components) {
         markUnusablePointComp(component);
     }
-    cout << " total unusable points: " << defDB.pwgnd.unusablePoints.size() << endl; 
+    //cout << " total unusable points: " << defDB.pwgnd.unusablePoints.size() << endl; 
 
     //for(auto point : defDB.pwgnd.unusablePoints)
     //    cout << point << endl;
@@ -2049,9 +2051,9 @@ void routeSNet() {
     routeHighLayerSNet("POWER"); 
     
     routeLowLayerMesh("POWER");
-    cout << "vddpin size:" << pwgnd.VDDpins.size() << " " << pwgnd.VDDpins[0].size() << endl; 
+    cout << "#vddpin:" << " " << pwgnd.VDDpins[0].size() << endl; 
    
-    cout << "gndpin size:" << pwgnd.GNDpins.size() << " " << pwgnd.GNDpins[0].size() << endl; 
+    cout << "#gndpin:" << " " << pwgnd.GNDpins[0].size() << endl; 
     routeHighLayerSNet("GROUND"); 
     
     routeLowLayerMesh("GROUND");
