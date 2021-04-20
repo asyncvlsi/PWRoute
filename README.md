@@ -11,9 +11,9 @@
 * [PhyDB]: phydb should be installed in 'ACT_HOME': 'ACT_HOME/include' should contain a 'phydb' folder with all phydb headers, 'ACT_HOME/lib' should contain libphydb.a
 
 ### Required Evironment variable
-* 'LEF_ROOT': installation path for the Si2 lef parser
-* 'DEF_ROOT': installation path for the Si2 def parser
-* 'ACT_HOME': installation path for ACT, where PhyDB is installed as well 
+* 'LEF_ROOT': installation path of the Si2 lef parser
+* 'DEF_ROOT': installation path of the Si2 def parser
+* 'ACT_HOME': installation path of ACT, where PhyDB is installed as well 
 
 ### Clone, compile, and install
     $ git clone https://github.com/asyncvlsi/PWRoute.git
