@@ -1,31 +1,126 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-unused-function")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable -Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-unused-function")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENDB -Wno-unused-variable -Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-unused-function")
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DOPENDB -Wno-unused-variable -Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-unused-function")
+cmake_minimum_required(VERSION 3.16)
 
-set(LEF_INCLUDE /net/ohm/export/cdgc/michael/EDA/lef/lef)
-#set(LEF_INCLUDE /net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/include/lef56)
-set(DEF_INCLUDE /net/ohm/export/cdgc/michael/EDA/def/def)
-#set(OPENDB_INCLUDE /net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/include/opendb)
+project(PWRoute
+    LANGUAGES CXX)
 
-include_directories(${DEF_INCLUDE} ${LEF_INCLUDE} ${OPENDB_INCLUDE})
+set(CMAKE_CXX_STANDARD 17)
 
-link_directories(/usr/lib64)
- 
-app(pwgnd_SPRoute main.cpp parserDataType.cpp defDataBase.cpp lefDataBase.cpp  dist.c dl.c err.c heap.c mst2.c neighbors.c bookshelf_IO.c memAlloc.c
-EXTLIBS /net/ohm/export/cdgc/michael/EDA/def/lib/libdef.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/lef56/libopendblef.a
-	    /net/ohm/export/cdgc/michael/EDA/lef/lib/liblef.a
-	    /net/ohm/export/cdgc/michael/boost-1.61.0/lib/libboost_serialization.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/defin/libdefin.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/lefin/liblefin.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/db/libopendb.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/zutil/libzutil.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/zlib/libzlib.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/lefout/liblefout.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/defout/libdefout.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/swig/tcl/libopendbtcl.a
-        #/net/ohm/export/cdgc/michael/EDA/OpenRoad/OpenDB/build/src/tm/libtm.a
-        #/usr/lib64/libtcl.so
-)
-target_link_libraries(pwgnd_SPRoute -Wno-unused-variable)
+######################################
+# detect the installation path of LEF parser and DEF parser,
+# and check if the liblef and libdef library can be found or not
+######################################
+message(STATUS "Detecting environment variable LEF_ROOT...")
+if (DEFINED ENV{LEF_ROOT})
+    message(STATUS "Environment variable LEF_ROOT detected: " $ENV{LEF_ROOT})
+else ()
+    message(FATAL_ERROR "Environment variable LEF_ROOT not found")
+endif ()
+include_directories($ENV{LEF_ROOT}/include)
+link_directories($ENV{LEF_ROOT}/lib)
+find_library(LEF_LIBRARY
+    NAMES lef
+    PATHS $ENV{LEF_ROOT}/lib
+    REQUIRED)
+if (NOT LEF_LIBRARY)
+    message(FATAL_ERROR "liblef.a is not found")
+else ()
+    message(STATUS "liblef.a found")
+endif()
+
+message(STATUS "Detecting environment variable DEF_ROOT...")
+if (DEFINED ENV{DEF_ROOT})
+    message(STATUS "Environment variable DEF_ROOT detected: " $ENV{DEF_ROOT})
+else ()
+    message(FATAL_ERROR "Environment variable DEF_ROOT not found")
+endif ()
+include_directories($ENV{DEF_ROOT}/include)
+link_directories($ENV{DEF_ROOT}/lib)
+find_library(DEF_LIBRARY
+    NAMES def
+    PATHS $ENV{DEF_ROOT}/lib
+    REQUIRED)
+if (NOT DEF_LIBRARY)
+    message(FATAL_ERROR "libdef.a is not found")
+else ()
+    message(STATUS "libdef.a found")
+endif()
+
+message(STATUS "Detecting environment variable $ENV{ACT_HOME}...")
+if (DEFINED ENV{PHYDB_ROOT})
+    message(STATUS "Environment variable PHYDB_ROOT detected: " $ENV{ACT_HOME}/include)
+else ()
+    message(FATAL_ERROR "Environment variable $ENV{ACT_HOME} not found")
+endif ()
+include_directories($ENV{ACT_HOME}/include)
+link_directories($ENV{ACT_HOME}/lib)
+find_library(PHYDB_LIBRARY
+    NAMES phydb
+    PATHS $ENV{ACT_HOME}/lib
+    REQUIRED)
+if (NOT PHYDB_LIBRARY)
+    message(FATAL_ERROR "libphydb.a is not found")
+else ()
+    message(STATUS "libphydb.a found")
+endif()
+
+# Set a default build type if none was specified
+set(default_build_type "RELEASE")
+if (NOT CMAKE_BUILD_TYPE)
+    message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+    set(CMAKE_BUILD_TYPE "${default_build_type}")
+    # Set the possible values of build type for cmake-gui
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+        "DEBUG" "RELEASE")
+endif ()
+
+add_compile_options(-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+
+# Set the output directory of static libraries
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+
+# Set the output directory of executables
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+
+include_directories(include)
+FILE(GLOB SOURCES "src/*.cpp")
+add_subdirectory(test)
+
+add_library(pwroute 
+    STATIC
+    ${SOURCES})
+target_link_libraries(pwroute
+    lef def phydb)
+
+add_executable(pwroute_test
+    test/test.cpp)
+target_link_libraries(pwroute_test
+	phydb pwroute
+    )
+
+######################################
+# specify the installation directory: ${ACT_HOME}
+######################################
+
+message(STATUS "Detecting environment variable ACT_HOME...")
+if (DEFINED ENV{ACT_HOME})
+    message(STATUS "Environment variable ACT_HOME detected: " $ENV{ACT_HOME})
+else ()
+    message(FATAL_ERROR "Environment variable ACT_HOME not found")
+endif ()
+message(STATUS "Changing Installation directory to ACT_HOME")
+set(CMAKE_INSTALL_PREFIX $ENV{ACT_HOME} CACHE PATH "installation path" FORCE)
+message(STATUS "Current installation directory: " ${CMAKE_INSTALL_PREFIX})
+
+
+######################################
+# Install header files
+######################################
+install(DIRECTORY include/ DESTINATION include/pwroute COMPONENT Development FILES_MATCHING PATTERN "*.h")
+
+######################################
+# Install library
+######################################
+install(TARGETS pwroute
+    DESTINATION lib)
