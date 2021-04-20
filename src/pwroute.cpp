@@ -772,6 +772,10 @@ void PWRoute::RunPWRoute() {
     cout << "high_mesh_multiple_width: "  << high_mesh_multiple_width << endl;
     cout << "high_mesh_multiple_step: "  << high_mesh_multiple_step << endl;
     cout << "cluster_mesh_multiple_width: "  << cluster_mesh_multiple_width << endl;
+    if(db_ptr_ == NULL) {
+        cout << "no phydb in pwroute" << endl;
+        exit(1);
+    }
     ComputeMinLength();
     LinkTrackToLayer();
     PreprocessComponents();
