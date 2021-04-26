@@ -64,8 +64,6 @@ class PWRoute {
     int high_mesh_layer = 10; // Metal 6
     int cluster_horizontal_layer = 6; //horizontal mesh between rows, metal 4
     int cluster_vertical_layer = 8; //vertical mesh between cols, metal 5
-    
-    
 
     phydb::PhyDB* db_ptr_;
 
