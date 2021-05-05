@@ -26,13 +26,10 @@ int main(int argc, char** argv)
         else if(tmp == "-cluster") {
             clusterFileName = string(argv[i+1]);
         }
-        else if(tmp == "-cell") {
-            cellFileName = string(argv[i+1]);
-        }
     }
-    if(lefFileName.size() == 0 || defFileName.size() == 0 || outFileName.size() == 0 || cellFileName.size() == 0 || clusterFileName.size() == 0)
+    if(lefFileName.size() == 0 || defFileName.size() == 0 || outFileName.size() == 0 || clusterFileName.size() == 0)
     {
-        cout << "usage: ./PWRoute -lef [LefFile] -def [DefFile] -cluster [clusterFile] -cell [cellFile] -output [Output file]" << endl;
+        cout << "usage: ./PWRoute -lef [LefFile] -def [DefFile] -cluster [clusterFile] -output [Output file]" << endl;
         exit(1);
     }
 
@@ -45,9 +42,6 @@ int main(int argc, char** argv)
     //defFileName = "final.def";
     db.ReadDef(defFileName);
     cout << "def reading done" << endl;
-
-    //cellFileName = "processor.cell";
-    db.ReadCell(cellFileName);
 
     //string clusterFileName = "circuit_router.cluster";
     db.ReadCluster(clusterFileName);
