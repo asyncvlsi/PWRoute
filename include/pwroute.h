@@ -111,8 +111,7 @@ class PWRoute {
     void findTouchPointsNoTrack(vector<Rect2D<double>>& rects, map<int, int>& closestPoint, int expand, int signalY);
     void findTouchPointsOBSNoTrack(vector<Rect2D<double>>& rects, const map<int, int>& closestPinPoint, 
         map<int, int>& closestOBSPoint, int expand, int signalY);
-    bool M1DetailedRouteSNet(PWRouteComponent& component, string signal, int signalY, 
-        vector<Wire>& Wires, Point2D<int>& powerPoint);
+    bool M1DetailedRouteSNet(PWRouteComponent& component, string signal);
     void M2MetalFill(string signal);
     phydb::SNet* FindSNet(SignalUse);
 

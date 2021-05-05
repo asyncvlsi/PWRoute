@@ -40,10 +40,14 @@ void PWRoute::LinkTrackToLayer() {
 }
 
 void PWRoute::SetDefaultVia() {
+    bool debug = false;
     auto layer_v = db_ptr_->GetTechPtr()->GetLayersRef();
     auto vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     for(int layerid = 0; layerid < layer_v.size(); layerid++) {
+        if(layer_v[layerid].GetType() != ROUTING)
+            continue;
         string layer_name = layer_v[layerid].GetName();
+
         int found_lefvia_id = -1;
         for(int lefvia_id = 0; lefvia_id < vias.size(); lefvia_id++) {
             auto lefvia = vias[lefvia_id];
@@ -57,6 +61,8 @@ void PWRoute::SetDefaultVia() {
         }
         assert(found_lefvia_id != -1);
         topLayerId_2_viaId_[layerid] = found_lefvia_id;
+        if(debug)
+            cout << "layerid: " << layerid << " " << found_lefvia_id << endl;
     }
 }
 
@@ -776,6 +782,7 @@ void PWRoute::RunPWRoute() {
         cout << "no phydb in pwroute" << endl;
         exit(1);
     }
+    SetDefaultVia();
     ComputeMinLength();
     LinkTrackToLayer();
     PreprocessComponents();
@@ -784,6 +791,7 @@ void PWRoute::RunPWRoute() {
 }
 
 phydb::SNet* PWRoute::FindSNet(SignalUse signal) {
+    bool debug = false;
     auto snet_ref_v = db_ptr_->GetSNetRef();
     bool found = false;
     phydb::SNet* snet_ptr = nullptr;
@@ -804,20 +812,22 @@ phydb::SNet* PWRoute::FindSNet(SignalUse signal) {
             snet_ptr = db_ptr_->AddSNet(GND, signal);
         }
     }
+    if(debug)
+        cout << "added net ptr: " << snet_ptr << endl;
 
     assert(snet_ptr != nullptr);
     return snet_ptr;
 }
 
 void PWRoute::ExportToPhyDB() {
-
+    bool debug = false;
+    
     //export POWER
     phydb::SNet* power_ptr = FindSNet(POWER);
-    phydb::SNet* ground_ptr = FindSNet(GROUND);
 
     for(auto wire : pwgnd_.powerWires) {
         string stripe = string("STRIPE");
-        auto path_ptr = power_ptr->AddPath(wire.layerName, wire.width, stripe);
+        phydb::Path* path_ptr = power_ptr->AddPath(wire.layerName, wire.width, stripe);
 
         path_ptr->SetBegin(wire.coorX[0], wire.coorY[0]);
         if(wire.numPathPoint == 2) {
@@ -829,9 +839,18 @@ void PWRoute::ExportToPhyDB() {
         }
     }
 
+    if(debug) {
+        cout << "phydb snet power paths size: " << power_ptr->GetPathRef().size() << endl;
+        cout << "phydb power ptr: " << power_ptr << endl;
+        std::string snet_name = "Vdd";
+        cout << "phydb power ptr2: " << db_ptr_->GetSNet(snet_name) << endl;
+        cout << "power path ptr: " << &(power_ptr->GetPathRef()) << endl;
+    }
+
+    phydb::SNet* ground_ptr = FindSNet(GROUND);
     //export GROUND
     for(auto wire : pwgnd_.gndWires) {
-        auto path_ptr = ground_ptr->AddPath(wire.layerName, wire.width, "STRIPE");
+        phydb::Path* path_ptr = ground_ptr->AddPath(wire.layerName, wire.width, "STRIPE");
 
         path_ptr->SetBegin(wire.coorX[0], wire.coorY[0]);
         if(wire.numPathPoint == 2) {
@@ -841,6 +860,15 @@ void PWRoute::ExportToPhyDB() {
         if(wire.viaName != "") {
             path_ptr->SetViaName(wire.viaName);
         }
+    }
+    if(debug) {
+        cout << "phydb snet ground paths size: " << ground_ptr->GetPathRef().size() << endl;
+        cout << "phydb ground ptr: " << ground_ptr << endl;
+        std::string snet_name = "GND";
+        cout << "phydb ground ptr2: " << db_ptr_->GetSNet(snet_name) << endl;
+        cout << "ground path ptr: " << &(ground_ptr->GetPathRef()) << endl;
+        cout << endl;
+        cout << " total number of snets " << db_ptr_->GetSNetRef().size() << endl;
     }
 
 }

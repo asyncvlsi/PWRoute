@@ -7,7 +7,7 @@ using namespace phydb;
 
 int main(int argc, char** argv)
 {
-    string defFileName, lefFileName, outFileName, cellFileName;
+    string defFileName, lefFileName, outFileName, cellFileName, clusterFileName;
     for(int i = 1; i < argc; i++)
     {
         string tmp(argv[i]);
@@ -24,34 +24,39 @@ int main(int argc, char** argv)
             outFileName = string(argv[i+1]);
         }
         else if(tmp == "-cluster") {
+            clusterFileName = string(argv[i+1]);
+        }
+        else if(tmp == "-cell") {
             cellFileName = string(argv[i+1]);
         }
     }
-    if(defFileName.size() == 0 || defFileName.size() == 0 || outFileName.size() == 0 || cellFileName.size() == 0)
+    if(lefFileName.size() == 0 || defFileName.size() == 0 || outFileName.size() == 0 || cellFileName.size() == 0 || clusterFileName.size() == 0)
     {
-        cout << "usage: ./PWRoute -lef [LefFile] -def [DefFile] -cluster [clusterFile] -output [Output file]" << endl;
-        //exit(1);
+        cout << "usage: ./PWRoute -lef [LefFile] -def [DefFile] -cluster [clusterFile] -cell [cellFile] -output [Output file]" << endl;
+        exit(1);
     }
 
     phydb::PhyDB db;
 
-    lefFileName = "final.lef";
+    //lefFileName = "final.lef";
     db.ReadLef(lefFileName);
     cout << "lef reading done" << endl;
 
-    defFileName = "final.def";
+    //defFileName = "final.def";
     db.ReadDef(defFileName);
     cout << "def reading done" << endl;
 
-    cellFileName = "processor.cell";
+    //cellFileName = "processor.cell";
     db.ReadCell(cellFileName);
 
-    string clusterFileName = "circuit_router.cluster";
+    //string clusterFileName = "circuit_router.cluster";
     db.ReadCluster(clusterFileName);
 
     pwroute::PWRoute router(&db);
     router.RunPWRoute();
     router.ExportToPhyDB();
 
-    return 1;
+    db.WriteDef(outFileName);
+
+    return 0;
 }

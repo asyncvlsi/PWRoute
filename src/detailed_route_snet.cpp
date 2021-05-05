@@ -3,8 +3,7 @@
 using namespace phydb;
 namespace pwroute {
 
-bool PWRoute::M1DetailedRouteSNet(PWRouteComponent& component, string signal, int signalY, 
-        vector<Wire>& Wires, Point2D<int>& powerPoint) {
+bool PWRoute::M1DetailedRouteSNet(PWRouteComponent& component, string signal) {
     vector<Rect2D<double>> pinRect;
     vector<Rect2D<double>> M2pinRect;
     vector<Rect2D<double>> obsRect;
@@ -89,7 +88,6 @@ void PWRoute::findTouchPointsNoTrack(vector<Rect2D<double>>& rects, map<int, int
         int left = rect.ll.x + expand;
         int right = rect.ur.x - expand; //actually this is shrink
         
-        int midX = (rect.ll.x + rect.ur.x) / 2;
         int midY = (rect.ll.y + rect.ur.y) / 2;
 
         for(int x = left; x <= right; x += M3_pitch) {
@@ -229,7 +227,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
     string M1_name = layers[0].GetName();
     int M1_width = layers[0].GetWidth() * dbuPerMicron;
     int M1_pitch = layers[0].GetPitchX() * dbuPerMicron;
-    int M1_minlength = layer_min_length_[0] * dbuPerMicron;
     int M1_spacing = (M1_pitch - M1_width);
     
     int V1_width = layers[1].GetWidth() * dbuPerMicron;
@@ -695,7 +692,6 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, string signal, in
         //touchX = pinPoint.first;
         touchX = track.GetStart() + trackIdx * track.GetStep();
         touchY = pinPoint.second;
-        double obsY = trackClosestOBSPoint[trackIdx];
  
         Point2D<double> touchPoint(touchX, touchY);
         bool M2cover = false;
@@ -833,7 +829,7 @@ void PWRoute::DetailedRouteSNetComp(PWRouteComponent& component) {
     Point2D<int> powerPoint(-1, -1);
     bool M1power = false, M1ground = false, M2power = false, M2ground = false, M1M3power = false, M1M3ground = false; 
     
-    M1power = M1DetailedRouteSNet(component, "POWER", powerY, pwgnd_.powerWires, powerPoint);
+    M1power = M1DetailedRouteSNet(component, "POWER");
     if(!M1power) {
         M2power = M2DetailedRouteSNet(component, "POWER", powerY, pwgnd_.powerWires, powerPoint);
         if(!M2power) {
@@ -842,7 +838,7 @@ void PWRoute::DetailedRouteSNetComp(PWRouteComponent& component) {
                 cout << "warning: UNABLE TO PATTERN ROUTE POWER: " << component.name_ << endl;
         }
     }
-    M1ground = M1DetailedRouteSNet(component, "GROUND", gndY, pwgnd_.gndWires, powerPoint);
+    M1ground = M1DetailedRouteSNet(component, "GROUND");
     if(!M1ground) {
         M2ground = M2DetailedRouteSNet(component, "GROUND", gndY, pwgnd_.gndWires, powerPoint);
         if(!M2ground) {
