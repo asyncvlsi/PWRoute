@@ -365,7 +365,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         }
     }
    
-    if(!foundM1M3)
+    if(!foundM1M3) //closest points don't work, find farthest point
     for(auto pinPoint : trackFarthestPinPoint) {
         int trackIdx = pinPoint.first;
         touchX = track.GetStart() + trackIdx * track.GetStep();
@@ -518,7 +518,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
 
         int zRouteOffset = 0;
         if(signal == "GROUND" && touchX == powerPoint.x &&
-                ((touchY < signalY && powerPoint.y > touchY) || (touchY > signalY && powerPoint.y < touchY))) { //Z route
+                ((touchY < signalY && powerPoint.y > touchY) || (touchY > signalY && powerPoint.y < touchY))) { //Z route, if power and gnd pins have the same X
            
             if(move_right)
                 zRouteOffset = M3_pitch;
@@ -590,8 +590,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
             tmpWire.width = M2_width;
         }
         else {
-            tmpWire.coorX[0] = touchX - M2_minlength / 6;
-            tmpWire.coorX[1] = touchX + M2_minlength / 6;
+            int length = max(M2_width / 2, M2_minlength / 6); //sometimes M2_minlength / 3 < M2_width, too thin 
+            tmpWire.coorX[0] = touchX - length;
+            tmpWire.coorX[1] = touchX + length;
             tmpWire.width = 3 * M2_width;
         }
 

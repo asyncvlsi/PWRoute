@@ -22,6 +22,7 @@ class PWGND {
 public:
     int pitch;
     int meshWidth;
+    int vMeshSpacing;
     int signalNetWidth;
     //string meshLayerName;
     //string routeLayerName;
@@ -113,6 +114,7 @@ class PWRoute {
         map<int, int>& closestOBSPoint, int expand, int signalY);
     bool M1DetailedRouteSNet(PWRouteComponent& component, string signal);
     void M2MetalFill(string signal);
+    double FitGrid(double num, double manufacturingGrid);
     phydb::SNet* FindSNet(SignalUse);
 
   public: 

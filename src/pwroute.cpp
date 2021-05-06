@@ -67,11 +67,12 @@ void PWRoute::SetDefaultVia() {
 }
 
 void PWRoute::InitCluster() {
-
+    bool debug = false;
     int lx, ux, ly, uy;
     int cnt_y = 0, cnt_x = 0;
     
     int pre_ux = 0, pre_uy;
+    int width = pwgnd_.meshWidth;
     for(auto& column : db_ptr_->GetDesignPtr()->GetClusterColsRef()) {
         
         set<int> yPW;
@@ -88,8 +89,11 @@ void PWRoute::InitCluster() {
         else                                   //VDD
             cnt_y = 1;
 
-        if(pre_ux == 0)
-            pwgnd_.xMesh.push_back((lx + db_ptr_->GetDesignPtr()->GetDieArea().LLX()) / 2); //first column, the left boundary      
+        if(pre_ux == 0) {
+            int x1 = (lx + db_ptr_->GetDesignPtr()->GetDieArea().LLX()) / 2;
+            int x2 = db_ptr_->GetDesignPtr()->GetDieArea().LLX() + 1.5 * width;
+            pwgnd_.xMesh.push_back(max(x1, x2)); //first column, the left boundary   
+        }   
         else 
             pwgnd_.xMesh.push_back((lx + pre_ux)/2); 
         
@@ -129,13 +133,22 @@ void PWRoute::InitCluster() {
         pwgnd_.gndyMesh.push_back(tmpGND);
     }
     
-    pwgnd_.xMesh.push_back((ux + db_ptr_->GetDesignPtr()->GetDieArea().URX()) / 2);  //The right boundary  
+    int x1 = (ux + db_ptr_->GetDesignPtr()->GetDieArea().URX()) / 2;
+    int x2 = db_ptr_->GetDesignPtr()->GetDieArea().URX() - 1.5 * width;
+    
+    pwgnd_.xMesh.push_back(min(x1, x2));  //The right boundary  
+    if(debug) {
+        cout << "xMesh: " << endl;
+        for(int i = 0; i < pwgnd_.xMesh.size(); i++)
+            cout << pwgnd_.xMesh[i] << " ";
+        cout << endl;
+    }
 }
 
 
 /* round num to be a multiple of 2*manufacturingGrid
 The wirewidth should be multiple of 2*manufacturingGrid */ 
-double fitGrid(double num, double manufacturingGrid) {  
+double PWRoute::FitGrid(double num, double manufacturingGrid) {  
     
     if(manufacturingGrid == 0)
         return num;
@@ -151,7 +164,7 @@ double fitGrid(double num, double manufacturingGrid) {
 }
 
 void PWRoute::SNetConfig() {
-    InitCluster();
+    
     int dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
     double manufacturingGrid = db_ptr_->GetTechPtr()->GetManufacturingGrid();
     pwgnd_.signalNetWidth = db_ptr_->GetLayersRef().at(2).GetWidth() * dbuPerMicron; //use m2 width as standard
@@ -161,13 +174,12 @@ void PWRoute::SNetConfig() {
     int viaIdx = topLayerId_2_viaId_[2]; //check the via of M1-M2
     auto via = db_ptr_->GetTechPtr()->GetLefViasRef()[viaIdx];
     auto rect = via.GetLayerRectsRef()[0].rects_[0];
-    int h = rect.URX() - rect.LLX();
-    int v = rect.URY() - rect.LLY();
-    int viaLength = (h > v)? h : v;
-    viaLength *= dbuPerMicron;
+    double h = rect.URX() - rect.LLX();
+    double v = rect.URY() - rect.LLY();
+    int viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
     pwgnd_.meshWidth = max(cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
 
-    pwgnd_.meshWidth = fitGrid(pwgnd_.meshWidth, manufacturingGrid);
+    pwgnd_.meshWidth = FitGrid(pwgnd_.meshWidth, manufacturingGrid);
 
     auto layers = db_ptr_->GetLayersRef();
 
@@ -178,7 +190,13 @@ void PWRoute::SNetConfig() {
     else { //usually this branch because m2/m4 = horizontal
         pwgnd_.vMeshLayerName = db_ptr_->GetLayersRef().at(cluster_vertical_layer).GetName(); //M5
 	    pwgnd_.hMeshLayerName = db_ptr_->GetLayersRef().at(cluster_horizontal_layer).GetName(); //M4
+         
     }
+
+    /*double width = pwgnd_.meshWidth / dbuPerMicron;
+    auto layer = db_ptr_->GetLayersRef().at(cluster_vertical_layer);
+    auto spacing_table_ptr = layer.GetSpacingTable();
+    pwgnd.vMeshSpacing =*/
 
     std::cout << "vertical mesh layer: " << pwgnd_.vMeshLayerName << std::endl;
     std::cout << "horizontal mesh layer: " << pwgnd_.hMeshLayerName << std::endl;
@@ -298,8 +316,8 @@ void PWRoute::RouteHighLayerMesh(string signal) {
     int step =  pitch * high_mesh_multiple_step;
     int safeDistance = SafeBoundaryDistance();
     int nReinforcement = (dieArea.ur.y - dieArea.ll.y - 2 * (pitch + safeDistance)) / step + 1;
-    width = fitGrid(width, dbuPerMicron);
-    pitch = fitGrid(pitch, dbuPerMicron);
+    width = FitGrid(width, dbuPerMicron);
+    pitch = FitGrid(pitch, dbuPerMicron);
     
     int offset;
     int midoffset;
@@ -612,6 +630,10 @@ void PWRoute::FindRowSNet(string componentName, string pinName, Rect2D<double> r
         cout << "ERROR: Pin's X is not in any column!" << endl;
         cout << componentName << "/" << pinName << endl;
         cout << "Pin: " << rect << endl;
+        cout << "xMesh : " << endl;
+        for(int i = 0; i < xMesh.size() - 1; i++) 
+            cout << xMesh[i] << " ";
+        cout << endl;
         exit(1);
     }
     
@@ -757,10 +779,11 @@ void PWRoute::RouteSNet() {
 
 void PWRoute::ComputeMinLength() {
     auto& layers = db_ptr_->GetLayersRef();
+    double manufacturingGrid = db_ptr_->GetTechPtr()->GetManufacturingGrid();
     double min_length;
     for(int i = 0; i < layers.size(); i++) {
         if(layers[i].GetType() == ROUTING)
-            min_length = layers[i].GetArea() / layers[i].GetWidth();
+            min_length = FitGrid(layers[i].GetArea() / layers[i].GetWidth(), manufacturingGrid);
         else
             min_length = -1;
         layer_min_length_.push_back(min_length);
@@ -787,6 +810,7 @@ void PWRoute::RunPWRoute() {
     LinkTrackToLayer();
     PreprocessComponents();
     SNetConfig();
+    InitCluster();
     RouteSNet();
 }
 
