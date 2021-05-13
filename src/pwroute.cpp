@@ -315,7 +315,7 @@ void PWRoute::RouteHighLayerMesh(string signal) {
 
     int step =  pitch * high_mesh_multiple_step;
     int safeDistance = SafeBoundaryDistance();
-    int nReinforcement = (dieArea.ur.y - dieArea.ll.y - 2 * (pitch + safeDistance)) / step + 1;
+    int nReinforcement = (dieArea.ur.y - dieArea.ll.y - 2 * (pitch + safeDistance + width)) / step + 1;
     width = FitGrid(width, dbuPerMicron);
     pitch = FitGrid(pitch, dbuPerMicron);
     
@@ -337,7 +337,7 @@ void PWRoute::RouteHighLayerMesh(string signal) {
 
     string vMeshLayerName = pwgnd_.vMeshLayerName;
     int vlayerID = db_ptr_->GetTechPtr()->GetLayerId(vMeshLayerName);
-
+    cout << "nReinforcement: " << nReinforcement << endl;
     if((nReinforcement == 1 && dieArea.ur.y - dieArea.ll.y > 3 * pitch + 2 * safeDistance) ||
             nReinforcement > 1) {
         
