@@ -23,7 +23,5 @@
     $ cmake ..
     $ make
     $ make install
- "make install" creates a folder `pwroute` under folder `$ACT_HOME/include` with all .h of PWRoute/include, and a static library `libphydb.a` under folder `$ACT_HOME/lib`.
+ "make install" creates a folder `pwroute` under folder `$ACT_HOME/include` with all .h of PWRoute/include, and a static library `libpwroute.a` under folder `$ACT_HOME/lib`.
 
-### Notice
-* The LEF parser linked above has a memory leak. This LEF parser is a modified version of the original LEF parser from Si2; the original parser does not have this issue, and you can obtain that from Si2 directly.
