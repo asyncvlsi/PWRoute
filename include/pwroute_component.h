@@ -41,7 +41,7 @@ public:
     PWRouteComponent(PhyDB* db_ptr_, phydb::Component& component) {
         int dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
 
-        Macro* macro_ptr = db_ptr_->GetMacroPtr(component.GetMacroName());
+        Macro* macro_ptr = component.GetMacro();
 
         Point2D<int> orig;
         orig.x = macro_ptr->GetOriginX() * dbuPerMicron;
