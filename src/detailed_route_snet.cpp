@@ -167,6 +167,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
     auto vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     int dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
+    double manufacturing_grid = db_ptr_->GetTechPtr()->GetManufacturingGrid();
 
     for(auto pin : component.pins_) {
         for(auto layerRect : pin.layer_rects_) {
@@ -585,12 +586,12 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         Wires.push_back(tmpWire);//M3 to M2 via, touch
         
         if(!M2thinFail) {
-            tmpWire.coorX[0] = touchX - M2_minlength / 2;
-            tmpWire.coorX[1] = touchX + M2_minlength / 2;
+            tmpWire.coorX[0] = touchX - (int) FitGrid(M2_minlength / 2, (double) dbuPerMicron * manufacturing_grid);
+            tmpWire.coorX[1] = touchX + (int) FitGrid(M2_minlength / 2, (double) dbuPerMicron * manufacturing_grid);
             tmpWire.width = M2_width;
         }
         else {
-            int length = max(M2_width / 2, M2_minlength / 6); //sometimes M2_minlength / 3 < M2_width, too thin 
+            int length = max(M2_width / 2, (int) FitGrid(M2_minlength / 6, (double) dbuPerMicron * manufacturing_grid)); //sometimes M2_minlength / 3 < M2_width, too thin 
             tmpWire.coorX[0] = touchX - length;
             tmpWire.coorX[1] = touchX + length;
             tmpWire.width = 3 * M2_width;
