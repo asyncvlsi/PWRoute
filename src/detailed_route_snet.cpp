@@ -387,7 +387,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         
         for(int viaIdx = topLayerId_2_viaId_[2]; viaIdx < topLayerId_2_viaId_[4]; viaIdx++) { //vias whose top layer is M2
             auto via = vias[viaIdx];
-            int llx, lly, urx, ury;
+            int llx = -1, lly = -1, urx = -1, ury = -1;
             M1cover = false;
             for(auto layerRect : via.GetLayerRectsRef()) {
                 if(layerRect.layer_name_ == M1_name) {
@@ -497,7 +497,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         }
      
         auto& xMesh = pwgnd_.xMesh;
-        bool move_right;
+        bool move_right = false;
         for(int i = 0; i < xMesh.size() - 1; i++) {
             if(touchX > xMesh[i] && touchX < (xMesh[i] + xMesh[i + 1]) / 2) {
                 move_right = true; 
@@ -940,8 +940,10 @@ void PWRoute::DetailedRouteSNet() {
         DetailedRouteSNetComp(component);
     }
 
-    cout << "Power routing completes/fails: " << POWER_FOUND << " / " << POWER_UNFOUND << endl;
-    cout << "Ground routing completes/fails: " << GROUND_FOUND << " / " << GROUND_UNFOUND << endl;
+    if(verbose_ > none) {
+        cout << "Power routing completes/fails: " << POWER_FOUND << " / " << POWER_UNFOUND << endl;
+        cout << "Ground routing completes/fails: " << GROUND_FOUND << " / " << GROUND_UNFOUND << endl;
+    }
     
     M2MetalFill("POWER");
     M2MetalFill("GROUND");

@@ -7,6 +7,12 @@
 using namespace phydb;
 namespace pwroute {
 
+enum VERBOSE {
+    none = 0,
+    info,
+    debug
+};
+
 class Wire {
 public:
     double coorX[2];
@@ -81,6 +87,8 @@ class PWRoute {
     int GROUND_FOUND = 0;
     int GROUND_UNFOUND = 0;
 
+    int verbose_ = 0;
+
     void ComputeMinLength();
     void LinkTrackToLayer();
     void SetDefaultVia();
@@ -119,13 +127,15 @@ class PWRoute {
 
   public: 
     PWRoute() {}
-    PWRoute(phydb::PhyDB* p) : db_ptr_(p) {}
+    PWRoute(phydb::PhyDB* p) : db_ptr_(p){}
+    PWRoute(phydb::PhyDB* p, int verb) : db_ptr_(p), verbose_(verb) {}
 
     void SetDBPtr(phydb::PhyDB* p);
 
     void SetMeshWidthStep(int, int, int);
     void RunPWRoute();
     void ExportToPhyDB();
+
 };
 
 }

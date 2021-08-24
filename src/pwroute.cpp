@@ -198,8 +198,10 @@ void PWRoute::SNetConfig() {
     auto spacing_table_ptr = layer.GetSpacingTable();
     pwgnd.vMeshSpacing =*/
 
-    std::cout << "vertical mesh layer: " << pwgnd_.vMeshLayerName << std::endl;
-    std::cout << "horizontal mesh layer: " << pwgnd_.hMeshLayerName << std::endl;
+    if(verbose_ > none) {
+        std::cout << "vertical mesh layer: " << pwgnd_.vMeshLayerName << std::endl;
+        std::cout << "horizontal mesh layer: " << pwgnd_.hMeshLayerName << std::endl;
+    }
 
     /*for(int i = lefDB.layers.size() - 1; i >= 0; i--) {
         if(lefDB.layers[i].direction == "HORIZONTAL") {
@@ -210,7 +212,9 @@ void PWRoute::SNetConfig() {
     }*/
     pwgnd_.lastHLayerID = high_mesh_layer;
     pwgnd_.lastHLayerName = layers[high_mesh_layer].GetName();
-    cout << "High H layer: " << pwgnd_.lastHLayerName << endl;
+    if(verbose_ > none) {
+        cout << "High H layer: " << pwgnd_.lastHLayerName << endl;
+    }
 }
 
 void PWRoute::PreprocessComponents()
@@ -771,9 +775,9 @@ void PWRoute::RouteSNet() {
 
     MarkUnusablePoint();
     DetailedRouteSNet();
-    cout << endl;
     if(POWER_UNFOUND != 0 || GROUND_UNFOUND != 0)
         cout << "ATTENTION: SOME CELLS FAIL TO ROUTE!" << endl;
+
     cout << "power/ground routing done!" << endl;
 }
 
@@ -798,9 +802,11 @@ void PWRoute::SetMeshWidthStep(int high_width, int high_step, int mesh_width) {
 }
 
 void PWRoute::RunPWRoute() {
-    cout << "high_mesh_multiple_width: "  << high_mesh_multiple_width << endl;
-    cout << "high_mesh_multiple_step: "  << high_mesh_multiple_step << endl;
-    cout << "cluster_mesh_multiple_width: "  << cluster_mesh_multiple_width << endl;
+    if(verbose_ > none) {
+        cout << "high_mesh_multiple_width11: "  << high_mesh_multiple_width << endl;
+        cout << "high_mesh_multiple_step: "  << high_mesh_multiple_step << endl;
+        cout << "cluster_mesh_multiple_width: "  << cluster_mesh_multiple_width << endl;
+    }
     if(db_ptr_ == NULL) {
         cout << "no phydb in pwroute" << endl;
         exit(1);

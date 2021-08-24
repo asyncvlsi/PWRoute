@@ -63,11 +63,13 @@ else ()
     message(STATUS "libphydb.a found")
 endif()
 
-find_package(Boost 1.69.0 COMPONENTS log_setup log filesystem REQUIRED)
+SET(Boost_USE_STATIC_LIBS ON)
+find_package(Boost 1.69.0 COMPONENTS log_setup log REQUIRED)
 message(STATUS "Boost library path: ${Boost_LIBRARY_DIRS}")
 message(STATUS "Boost include path: ${Boost_INCLUDE_DIR}")
 message(STATUS "Boost libs: ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
 
 # Set a default build type if none was specified
 set(default_build_type "RELEASE")
@@ -102,7 +104,7 @@ target_link_libraries(pwroute
 add_executable(pwroute_test
     test/test.cpp)
 target_link_libraries(pwroute_test
-	phydb pwroute
+	phydb pwroute 
     )
 
 ######################################
