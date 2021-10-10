@@ -3,10 +3,10 @@
 using namespace phydb;
 namespace pwroute {
 
-bool PWRoute::M1DetailedRouteSNet(PWRouteComponent& component, string signal) {
-    vector<Rect2D<double>> pinRect;
-    vector<Rect2D<double>> M2pinRect;
-    vector<Rect2D<double>> obsRect;
+bool PWRoute::M1DetailedRouteSNet(PWRouteComponent& component, std::string signal) {
+    std::vector<Rect2D<double>> pinRect;
+    std::vector<Rect2D<double>> M2pinRect;
+    std::vector<Rect2D<double>> obsRect;
     
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
     for(auto pin : component.pins_) {
@@ -49,8 +49,8 @@ bool PWRoute::M1DetailedRouteSNet(PWRouteComponent& component, string signal) {
 }
 
 
-void PWRoute::findTouchPointsOBSNoTrack(vector<Rect2D<double>>& rects, const map<int, int>& closestPinPoint, 
-        map<int, int>& closestOBSPoint, int expand, int signalY) {
+void PWRoute::findTouchPointsOBSNoTrack(std::vector<Rect2D<double>>& rects, const std::map<int, int>& closestPinPoint, 
+        std::map<int, int>& closestOBSPoint, int expand, int signalY) {
     for(auto rect : rects) {
         //inclusive track       
         int left = rect.ll.x - expand;
@@ -76,7 +76,7 @@ void PWRoute::findTouchPointsOBSNoTrack(vector<Rect2D<double>>& rects, const map
     }
 }
 
-void PWRoute::findTouchPointsNoTrack(vector<Rect2D<double>>& rects, map<int, int>& closestPoint, int expand, int signalY) {
+void PWRoute::findTouchPointsNoTrack(std::vector<Rect2D<double>>& rects, std::map<int, int>& closestPoint, int expand, int signalY) {
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
     int dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
     int M3_pitch = layers[4].GetPitchX() * dbuPerMicron;
@@ -105,7 +105,7 @@ void PWRoute::findTouchPointsNoTrack(vector<Rect2D<double>>& rects, map<int, int
     }
 }
 
-void PWRoute::findFarthestTouchPoints(vector<Rect2D<double>>& rects, map<int, int>& farthestPoint, 
+void PWRoute::findFarthestTouchPoints(std::vector<Rect2D<double>>& rects, std::map<int, int>& farthestPoint, 
         Track track, int expand, int signalY) {
     for(auto rect : rects) {
         //inclusive track       
@@ -130,7 +130,7 @@ void PWRoute::findFarthestTouchPoints(vector<Rect2D<double>>& rects, map<int, in
 }
 
 
-void PWRoute::findClosestTouchPoints(vector<Rect2D<double>>& rects, map<int, int>& closestPoint, 
+void PWRoute::findClosestTouchPoints(std::vector<Rect2D<double>>& rects, std::map<int, int>& closestPoint, 
         Track track, int expand, int signalY) {
     for(auto rect : rects) {
         //inclusive track       
@@ -155,13 +155,13 @@ void PWRoute::findClosestTouchPoints(vector<Rect2D<double>>& rects, map<int, int
     }
 }
 
-bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, int signalY, 
-        vector<Wire>& Wires, Point2D<int>& powerPoint) {
+bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
+        std::vector<Wire>& Wires, Point2D<int>& powerPoint) {
     
-    vector<Rect2D<double>> M2obsRect;
-    vector<Rect2D<double>> M1obsRect;
-    vector<Rect2D<double>> V1obsRect; 
-    vector<Rect2D<double>> pinRect;
+    std::vector<Rect2D<double>> M2obsRect;
+    std::vector<Rect2D<double>> M1obsRect;
+    std::vector<Rect2D<double>> V1obsRect; 
+    std::vector<Rect2D<double>> pinRect;
 
     auto tracks = db_ptr_->GetDesignPtr()->GetTracksRef();
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
@@ -215,8 +215,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
   
 
     int width = layers[4].GetWidth() * dbuPerMicron; //M3
-    map<int, int> trackClosestPinPoint; //map trackIdx -> y
-    map<int, int> trackFarthestPinPoint; 
+    std::map<int, int> trackClosestPinPoint; //map trackIdx -> y
+    std::map<int, int> trackFarthestPinPoint; 
 
     //map<int, int> touchPinPoint; //map x -> y 
     Track track = tracks[layerid_2_trackid_[4]]; //M3
@@ -225,7 +225,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
     //findTouchPointsNoTrack(pinRect, touchPinPoint, track, width / 2, signalY);
     findFarthestTouchPoints(pinRect, trackFarthestPinPoint, track, width / 2, signalY);
     
-    string M1_name = layers[0].GetName();
+    std::string M1_name = layers[0].GetName();
     int M1_width = layers[0].GetWidth() * dbuPerMicron;
     int M1_pitch = layers[0].GetPitchX() * dbuPerMicron;
     int M1_spacing = (M1_pitch - M1_width);
@@ -244,7 +244,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
     
     bool foundM1M3 = false;
     double touchX, touchY;
-    string M1M2ViaName;
+    std::string M1M2ViaName;
    
     bool M2thinFail = false;
     bool M2wideFail = false;
@@ -337,10 +337,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         M2cover = M2wideFail && M2thinFail;  
         
         if(component.name_ == "cx1") {
-            cout << signal << ":" << endl;
-            cout << "close M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << endl;
-            cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
-            cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location_.x << endl; 
+            std::cout << signal << ":" << std::endl;
+            std::cout << "close M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << std::endl;
+            std::cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
+            std::cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location_.x << std::endl; 
         }
 
  
@@ -357,7 +357,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
             }
         }//V1 via spacing
         if(component.name_ == "cx1")
-            cout << V1cover << M2cover << M1cover << endl;
+            std::cout << V1cover << M2cover << M1cover << std::endl;
         
         
         if(V1cover == false && M2cover == false && M1cover == false) {       
@@ -457,10 +457,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         }
         M2cover = M2wideFail && M2thinFail;  
         if(component.name_ == "cx1") {
-            cout << signal << ": " << endl;
-            cout << "far M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << endl;
-            cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
-            cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location_.x << endl; 
+            std::cout << signal << ": " << std::endl;
+            std::cout << "far M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << std::endl;
+            std::cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
+            std::cout << " M2minlength/2: " << M2_minlength / 2 << " component.x: " << component.location_.x << std::endl; 
         }
 
 
@@ -478,7 +478,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
         }//V1 via spacing
       
         if(component.name_ == "cx1")
-            cout << V1cover << M2cover << M1cover << endl;
+            std::cout << V1cover << M2cover << M1cover << std::endl;
         
  
        if(V1cover == false && M2cover == false && M1cover == false) {       
@@ -591,7 +591,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
             tmpWire.width = M2_width;
         }
         else {
-            int length = max(M2_width / 2, (int) FitGrid(M2_minlength / 6, (double) dbuPerMicron * manufacturing_grid)); //sometimes M2_minlength / 3 < M2_width, too thin 
+            int length = std::max(M2_width / 2, (int) FitGrid(M2_minlength / 6, (double) dbuPerMicron * manufacturing_grid)); //sometimes M2_minlength / 3 < M2_width, too thin 
             tmpWire.coorX[0] = touchX - length;
             tmpWire.coorX[1] = touchX + length;
             tmpWire.width = 3 * M2_width;
@@ -622,10 +622,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, 
 }   
 
 
-bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, string signal, int signalY, 
-        vector<Wire>& Wires, Point2D<int>& powerPoint) {
-    vector<Rect2D<double>> pinRect;
-    vector<Rect2D<double>> obsRect;
+bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
+        std::vector<Wire>& Wires, Point2D<int>& powerPoint) {
+    std::vector<Rect2D<double>> pinRect;
+    std::vector<Rect2D<double>> obsRect;
 
     auto tracks = db_ptr_->GetDesignPtr()->GetTracksRef();
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
@@ -660,8 +660,8 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, string signal, in
 
     Track track = tracks[layerid_2_trackid_[4]]; //M3
 
-    map<int, int> trackClosestPinPoint;
-    map<int, int> trackClosestOBSPoint;
+    std::map<int, int> trackClosestPinPoint;
+    std::map<int, int> trackClosestOBSPoint;
     
     /*map<int, int> closestPinPoint;
     map<int, int> closestOBSPoint;
@@ -706,8 +706,8 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, string signal, in
             
             if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
                 if(component.name_ == "p_ae__131_acpx0" && signal == "GROUND") {
-                    cout << "M2 " << component.name_ << ": " << touchX << " " << touchY << endl;
-                    cout << rect << endl;
+                    std::cout << "M2 " << component.name_ << ": " << touchX << " " << touchY << std::endl;
+                    std::cout << rect << std::endl;
                 }
                 
                 M2cover = true;
@@ -837,7 +837,7 @@ void PWRoute::DetailedRouteSNetComp(PWRouteComponent& component) {
         if(!M2power) {
             M1M3power = M1M3DetailedRouteSNet(component, "POWER", powerY, pwgnd_.powerWires, powerPoint); 
             if(!M1M3power)
-                cout << "warning: UNABLE TO PATTERN ROUTE POWER: " << component.name_ << endl;
+                std::cout << "warning: UNABLE TO PATTERN ROUTE POWER: " << component.name_ << std::endl;
         }
     }
     M1ground = M1DetailedRouteSNet(component, "GROUND");
@@ -846,7 +846,7 @@ void PWRoute::DetailedRouteSNetComp(PWRouteComponent& component) {
         if(!M2ground) {
             M1M3ground = M1M3DetailedRouteSNet(component, "GROUND", gndY, pwgnd_.gndWires, powerPoint); 
             if(!M1M3ground)
-                cout << "warning: UNABLE TO PATTERN ROUTE GROUND: " << component.name_ << endl;
+                std::cout << "warning: UNABLE TO PATTERN ROUTE GROUND: " << component.name_ << std::endl;
         }
     }
 
@@ -870,7 +870,7 @@ void PWRoute::DetailedRouteSNetComp(PWRouteComponent& component) {
 }
 
 
-void PWRoute::M2MetalFill(string signal) {
+void PWRoute::M2MetalFill(std::string signal) {
     auto tracks = db_ptr_->GetDesignPtr()->GetTracksRef();
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
     int dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
@@ -941,8 +941,8 @@ void PWRoute::DetailedRouteSNet() {
     }
 
     if(verbose_ > none) {
-        cout << "Power routing completes/fails: " << POWER_FOUND << " / " << POWER_UNFOUND << endl;
-        cout << "Ground routing completes/fails: " << GROUND_FOUND << " / " << GROUND_UNFOUND << endl;
+        std::cout << "Power routing completes/fails: " << POWER_FOUND << " / " << POWER_UNFOUND << std::endl;
+        std::cout << "Ground routing completes/fails: " << GROUND_FOUND << " / " << GROUND_UNFOUND << std::endl;
     }
     
     M2MetalFill("POWER");

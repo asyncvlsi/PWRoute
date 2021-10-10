@@ -9,7 +9,7 @@ class PWRoutePin {
 public:
     std::string name_;
     SignalUse use_;
-    vector<LayerRect> layer_rects_;
+    std::vector<LayerRect> layer_rects_;
 
     PWRoutePin(phydb::Pin& pin, int dbuPerMicron) {
         name_ = pin.GetName();
@@ -33,7 +33,7 @@ public:
     std::string name_;
     phydb::Point2D<int> location_;
     phydb::Point2D<int> size_;
-    vector<PWRoutePin> pins_;  
+    std::vector<PWRoutePin> pins_;  
     phydb::OBS obs_;
 
     void ComputeLocation(Rect2D<double>& rect, CompOrient orient, Point2D<int> location, Point2D<int> orig, Point2D<int> size);

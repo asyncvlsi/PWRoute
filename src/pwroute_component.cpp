@@ -212,7 +212,7 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             break;
         }
         default: {
-            cout << "unknown orientation for component: " << orient << endl;
+            std::cout << "unknown orientation for component: " << orient << std::endl;
             break;
         }
     }

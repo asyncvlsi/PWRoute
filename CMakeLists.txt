@@ -101,11 +101,11 @@ add_library(pwroute
 target_link_libraries(pwroute
     lef def phydb)
 
-add_executable(pwroute_test
-    test/test.cpp)
-target_link_libraries(pwroute_test
-	phydb pwroute 
-    )
+#add_executable(pwroute_test
+#    test/test.cpp)
+#target_link_libraries(pwroute_test
+#	phydb pwroute 
+#    )
 
 ######################################
 # specify the installation directory: ${ACT_HOME}

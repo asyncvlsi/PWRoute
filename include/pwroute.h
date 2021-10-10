@@ -18,8 +18,8 @@ public:
     double coorX[2];
     double coorY[2];
     int numPathPoint;
-    string layerName;
-    string viaName;
+    std::string layerName;
+    std::string viaName;
     int width;
 
 };
@@ -32,27 +32,27 @@ public:
     int signalNetWidth;
     //string meshLayerName;
     //string routeLayerName;
-    string hMeshLayerName;
-    string vMeshLayerName;
+    std::string hMeshLayerName;
+    std::string vMeshLayerName;
     int lastHLayerID;
-    string lastHLayerName;
-    string upperBoundNet;
-    string direction;
+    std::string lastHLayerName;
+    std::string upperBoundNet;
+    std::string direction;
 
-    vector<int> xMesh;
-    vector<vector<int>> poweryMesh;
-    vector<vector<int>> gndyMesh;
+    std::vector<int> xMesh;
+    std::vector<std::vector<int>> poweryMesh;
+    std::vector<std::vector<int>> gndyMesh;
     
-    vector<Wire> powerWires;
-    vector<Wire> gndWires;
+    std::vector<Wire> powerWires;
+    std::vector<Wire> gndWires;
     
-    vector<Range<int>> powerHighLayerY;
-    vector<Range<int>> gndHighLayerY;
+    std::vector<Range<int>> powerHighLayerY;
+    std::vector<Range<int>> gndHighLayerY;
 
-    map<int, set<int>> M2Fill;
-    set<Point2D<int>> unusablePoints;
-    set<Point2D<int>> powerM2Points;
-    set<Point2D<int>> gndM2Points;
+    std::map<int, std::set<int>> M2Fill;
+    std::set<Point2D<int>> unusablePoints;
+    std::set<Point2D<int>> powerM2Points;
+    std::set<Point2D<int>> gndM2Points;
 };
 
 
@@ -96,32 +96,32 @@ class PWRoute {
     void SNetConfig();
     void InitCluster();
     void RouteSNet();
-    void RouteHighLayerMesh(string );
-    void RouteLowLayerMesh(string );
+    void RouteHighLayerMesh(std::string );
+    void RouteLowLayerMesh(std::string );
     void MarkUnusablePoint();
     int SafeBoundaryDistance();
-    bool InHighLayerViaRange(string signal, int ypos);
-    bool NearHighLayerViaRange(string signal, int ypos, int& midRange);
+    bool InHighLayerViaRange(std::string signal, int ypos);
+    bool NearHighLayerViaRange(std::string signal, int ypos, int& midRange);
     void MarkUnusablePointComp(PWRouteComponent& component);
-    void FindRowSNet(string componentName, string pinName, Rect2D<double> rect, int& powerY, int& gndY);
+    void FindRowSNet(std::string componentName, std::string pinName, Rect2D<double> rect, int& powerY, int& gndY);
     void DetailedRouteSNet();
     void DetailedRouteSNetComp(PWRouteComponent& component);
-    bool M2DetailedRouteSNet(PWRouteComponent& component, string signal, int signalY, 
-        vector<Wire>& Wires, Point2D<int>& powerPoint);
-    void PlaceHighLayerVias(vector<Wire>& wires, int X, int Y, 
-        string topLayerName, int viaIdx, int length, int viaDistance, int layerWidth);
-    bool M1M3DetailedRouteSNet(PWRouteComponent& component, string signal, int signalY, 
-        vector<Wire>& Wires, Point2D<int>& powerPoint);
+    bool M2DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
+        std::vector<Wire>& Wires, Point2D<int>& powerPoint);
+    void PlaceHighLayerVias(std::vector<Wire>& wires, int X, int Y, 
+        std::string topLayerName, int viaIdx, int length, int viaDistance, int layerWidth);
+    bool M1M3DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
+        std::vector<Wire>& Wires, Point2D<int>& powerPoint);
 
-    void findClosestTouchPoints(vector<Rect2D<double>>& rects, map<int, int>& closestPoint, 
+    void findClosestTouchPoints(std::vector<Rect2D<double>>& rects, std::map<int, int>& closestPoint, 
         Track track, int expand, int signalY);
-    void findFarthestTouchPoints(vector<Rect2D<double>>& rects, map<int, int>& farthestPoint, 
+    void findFarthestTouchPoints(std::vector<Rect2D<double>>& rects, std::map<int, int>& farthestPoint, 
         Track track, int expand, int signalY);
-    void findTouchPointsNoTrack(vector<Rect2D<double>>& rects, map<int, int>& closestPoint, int expand, int signalY);
-    void findTouchPointsOBSNoTrack(vector<Rect2D<double>>& rects, const map<int, int>& closestPinPoint, 
-        map<int, int>& closestOBSPoint, int expand, int signalY);
-    bool M1DetailedRouteSNet(PWRouteComponent& component, string signal);
-    void M2MetalFill(string signal);
+    void findTouchPointsNoTrack(std::vector<Rect2D<double>>& rects, std::map<int, int>& closestPoint, int expand, int signalY);
+    void findTouchPointsOBSNoTrack(std::vector<Rect2D<double>>& rects, const std::map<int, int>& closestPinPoint, 
+        std::map<int, int>& closestOBSPoint, int expand, int signalY);
+    bool M1DetailedRouteSNet(PWRouteComponent& component, std::string signal);
+    void M2MetalFill(std::string signal);
     double FitGrid(double num, double manufacturingGrid);
     phydb::SNet* FindSNet(SignalUse);
 

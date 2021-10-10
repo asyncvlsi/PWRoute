@@ -16,7 +16,7 @@ void PWRoute::LinkTrackToLayer() {
                     auto track = tracks_ref[i];
                     for(auto layerName : track.GetLayerNames()) {
                         if(layerName == layer.GetName() && track.GetDirection() == Y) {
-                            layerid_2_trackid_.insert( pair<int, int> (layer.GetID(), i));
+                            layerid_2_trackid_.insert( std::pair<int, int> (layer.GetID(), i));
                         }
                     }
                 }
@@ -26,13 +26,13 @@ void PWRoute::LinkTrackToLayer() {
                     auto track = tracks_ref[i];
                     for(auto layerName : track.GetLayerNames()){
                         if(layerName == layer.GetName() && track.GetDirection() == X) {
-                            layerid_2_trackid_.insert( pair<int, int> (layer.GetID(), i));
+                            layerid_2_trackid_.insert( std::pair<int, int> (layer.GetID(), i));
                         }
                     }
                 }
             }
             else {
-                cout << "error: unknown direction of lefDB layers" << endl;
+                std::cout << "error: unknown direction of lefDB layers" << std::endl;
                 exit(1);
             }
         }
@@ -46,7 +46,7 @@ void PWRoute::SetDefaultVia() {
     for(int layerid = 0; layerid < layer_v.size(); layerid++) {
         if(layer_v[layerid].GetType() != ROUTING)
             continue;
-        string layer_name = layer_v[layerid].GetName();
+        std::string layer_name = layer_v[layerid].GetName();
 
         int found_lefvia_id = -1;
         for(int lefvia_id = 0; lefvia_id < vias.size(); lefvia_id++) {
@@ -62,7 +62,7 @@ void PWRoute::SetDefaultVia() {
         assert(found_lefvia_id != -1);
         topLayerId_2_viaId_[layerid] = found_lefvia_id;
         if(debug)
-            cout << "layerid: " << layerid << " " << found_lefvia_id << endl;
+            std::cout << "layerid: " << layerid << " " << found_lefvia_id << std::endl;
     }
 }
 
@@ -75,12 +75,12 @@ void PWRoute::InitCluster() {
     int width = pwgnd_.meshWidth;
     for(auto& column : db_ptr_->GetDesignPtr()->GetClusterColsRef()) {
         
-        set<int> yPW;
-        set<int> yGND;
+        std::set<int> yPW;
+        std::set<int> yGND;
         lx = column.GetLX();
         ux = column.GetUX();
-        vector<int> ly_v = column.GetLY();
-        vector<int> uy_v = column.GetUY();
+        std::vector<int> ly_v = column.GetLY();
+        std::vector<int> uy_v = column.GetUY();
         
         //start 
         pre_uy = 0;
@@ -92,7 +92,7 @@ void PWRoute::InitCluster() {
         if(pre_ux == 0) {
             int x1 = (lx + db_ptr_->GetDesignPtr()->GetDieArea().LLX()) / 2;
             int x2 = db_ptr_->GetDesignPtr()->GetDieArea().LLX() + 1.5 * width;
-            pwgnd_.xMesh.push_back(max(x1, x2)); //first column, the left boundary   
+            pwgnd_.xMesh.push_back(std::max(x1, x2)); //first column, the left boundary   
         }   
         else 
             pwgnd_.xMesh.push_back((lx + pre_ux)/2); 
@@ -119,8 +119,8 @@ void PWRoute::InitCluster() {
 
         // end
         
-        vector<int> tmpPW;
-        vector<int> tmpGND;
+        std::vector<int> tmpPW;
+        std::vector<int> tmpGND;
         for(auto y : yGND)
             tmpGND.push_back(y);
         sort(tmpGND.begin(), tmpGND.end());
@@ -136,12 +136,12 @@ void PWRoute::InitCluster() {
     int x1 = (ux + db_ptr_->GetDesignPtr()->GetDieArea().URX()) / 2;
     int x2 = db_ptr_->GetDesignPtr()->GetDieArea().URX() - 1.5 * width;
     
-    pwgnd_.xMesh.push_back(min(x1, x2));  //The right boundary  
+    pwgnd_.xMesh.push_back(std::min(x1, x2));  //The right boundary  
     if(debug) {
-        cout << "xMesh: " << endl;
+        std::cout << "xMesh: " << std::endl;
         for(int i = 0; i < pwgnd_.xMesh.size(); i++)
-            cout << pwgnd_.xMesh[i] << " ";
-        cout << endl;
+            std::cout << pwgnd_.xMesh[i] << " ";
+        std::cout << std::endl;
     }
 }
 
@@ -177,7 +177,7 @@ void PWRoute::SNetConfig() {
     double h = rect.URX() - rect.LLX();
     double v = rect.URY() - rect.LLY();
     int viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
-    pwgnd_.meshWidth = max(cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
+    pwgnd_.meshWidth = std::max(cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
 
     pwgnd_.meshWidth = FitGrid(pwgnd_.meshWidth, manufacturingGrid);
 
@@ -213,7 +213,7 @@ void PWRoute::SNetConfig() {
     pwgnd_.lastHLayerID = high_mesh_layer;
     pwgnd_.lastHLayerName = layers[high_mesh_layer].GetName();
     if(verbose_ > none) {
-        cout << "High H layer: " << pwgnd_.lastHLayerName << endl;
+        std::cout << "High H layer: " << pwgnd_.lastHLayerName << std::endl;
     }
 }
 
@@ -255,18 +255,18 @@ int PWRoute::SafeBoundaryDistance() {
             maxDistance = (maxDistance > fabs(rect.ur.y))? maxDistance : fabs(rect.ur.y);
         }
     }
-    //cout << "maxBoundaryDistance: " << maxDistance << endl;
+    //cout << "maxBoundaryDistance: " << maxDistance << std::endl;
     return (int)(maxDistance * dbuPerMicron); 
 }
 
-void PWRoute::PlaceHighLayerVias(vector<Wire>& wires, int X, int Y, 
-        string topLayerName, int viaIdx, int length, int viaDistance, int layerWidth) {
+void PWRoute::PlaceHighLayerVias(std::vector<Wire>& wires, int X, int Y, 
+        std::string topLayerName, int viaIdx, int length, int viaDistance, int layerWidth) {
     
     auto& vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
 
     auto via = vias[viaIdx];
-    string viaName = via.GetName();
+    std::string viaName = via.GetName();
     auto rect = via.GetLayerRectsRef()[0].rects_[0];
     double h = rect.ur.x - rect.ll.x;
     double v = rect.ur.y - rect.ll.y;
@@ -302,7 +302,7 @@ void PWRoute::PlaceHighLayerVias(vector<Wire>& wires, int X, int Y,
     
 }
 
-void PWRoute::RouteHighLayerMesh(string signal) {
+void PWRoute::RouteHighLayerMesh(std::string signal) {
     Wire tmpWire;
 
     Rect2D<int> dieArea = db_ptr_->GetDesignPtr()->GetDieArea();
@@ -310,7 +310,7 @@ void PWRoute::RouteHighLayerMesh(string signal) {
     auto& vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
 
-    string lastHLayerName = pwgnd_.lastHLayerName;
+    std::string lastHLayerName = pwgnd_.lastHLayerName;
     int lastHLayerID = pwgnd_.lastHLayerID;
     
     int width = layers[lastHLayerID].GetWidth() * dbuPerMicron * high_mesh_multiple_width;
@@ -340,7 +340,7 @@ void PWRoute::RouteHighLayerMesh(string signal) {
     auto& wires = (signal == "POWER")? pwgnd_.powerWires : pwgnd_.gndWires;
     auto& yranges = (signal == "POWER")? pwgnd_.powerHighLayerY : pwgnd_.gndHighLayerY;
 
-    string vMeshLayerName = pwgnd_.vMeshLayerName;
+    std::string vMeshLayerName = pwgnd_.vMeshLayerName;
     int vlayerID = db_ptr_->GetTechPtr()->GetLayerId(vMeshLayerName);
     if((nReinforcement == 1 && dieArea.ur.y - dieArea.ll.y > 3 * pitch + 2 * safeDistance) ||
             nReinforcement > 1) {
@@ -361,9 +361,9 @@ void PWRoute::RouteHighLayerMesh(string signal) {
     
             for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
                 int viaIdx = topLayerId_2_viaId_[i];
-                string topLayerName = layers[i].GetName();
+                std::string topLayerName = layers[i].GetName();
                 int layerWidth = layers[i].GetWidth() * dbuPerMicron;
-                string viaName = vias[viaIdx].GetName();
+                std::string viaName = vias[viaIdx].GetName();
                 for(int j = 0; j < xMesh.size(); j ++) {
                     int xpos = (signal == "POWER")? xMesh[j] + pwgnd_.meshWidth : xMesh[j] - pwgnd_.meshWidth;
                     PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
@@ -391,9 +391,9 @@ void PWRoute::RouteHighLayerMesh(string signal) {
         
             for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
                 int viaIdx = topLayerId_2_viaId_[i];
-                string topLayerName = layers[i].GetName();
+                std::string topLayerName = layers[i].GetName();
                 int layerWidth = layers[i].GetWidth() * dbuPerMicron;
-                string viaName = vias[viaIdx].GetName();
+                std::string viaName = vias[viaIdx].GetName();
                 for(int j = 0; j < xMesh.size(); j ++) {
                     int xpos = (signal == "POWER")? xMesh[j] + pwgnd_.meshWidth : xMesh[j] - pwgnd_.meshWidth;
                     PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
@@ -417,9 +417,9 @@ void PWRoute::RouteHighLayerMesh(string signal) {
     
             for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
                 int viaIdx = topLayerId_2_viaId_[i];
-                string topLayerName = layers[i].GetName();
+                std::string topLayerName = layers[i].GetName();
                 int layerWidth = layers[i].GetWidth() * dbuPerMicron;
-                string viaName = vias[viaIdx].GetName();
+                std::string viaName = vias[viaIdx].GetName();
                 for(int j = 0; j < xMesh.size(); j ++) {
                     int xpos = (signal == "POWER")? xMesh[j] + pwgnd_.meshWidth : xMesh[j] - pwgnd_.meshWidth;
                     PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
@@ -431,7 +431,7 @@ void PWRoute::RouteHighLayerMesh(string signal) {
 
 }
 
-bool PWRoute::InHighLayerViaRange(string signal, int ypos) {
+bool PWRoute::InHighLayerViaRange(std::string signal, int ypos) {
 
     auto& yranges = (signal == "POWER")? pwgnd_.powerHighLayerY : pwgnd_.gndHighLayerY;
     bool in = false;
@@ -444,7 +444,7 @@ bool PWRoute::InHighLayerViaRange(string signal, int ypos) {
     return in;
 }
 
-bool PWRoute::NearHighLayerViaRange(string signal, int ypos, int& midRange) {
+bool PWRoute::NearHighLayerViaRange(std::string signal, int ypos, int& midRange) {
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
     auto& layers = db_ptr_->GetLayersRef();
     
@@ -465,7 +465,7 @@ bool PWRoute::NearHighLayerViaRange(string signal, int ypos, int& midRange) {
     return in;
 }
 
-void PWRoute::RouteLowLayerMesh(string signal) {
+void PWRoute::RouteLowLayerMesh(std::string signal) {
     Wire tmpWire;
 
     Rect2D<int> dieArea = db_ptr_->GetDesignPtr()->GetDieArea();
@@ -473,8 +473,8 @@ void PWRoute::RouteLowLayerMesh(string signal) {
     auto& vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
     
-    string vMeshLayerName = pwgnd_.vMeshLayerName;
-    string hMeshLayerName = pwgnd_.hMeshLayerName;
+    std::string vMeshLayerName = pwgnd_.vMeshLayerName;
+    std::string hMeshLayerName = pwgnd_.hMeshLayerName;
     int vLayerID = db_ptr_->GetTechPtr()->GetLayerId(vMeshLayerName);
     int hLayerID = db_ptr_->GetTechPtr()->GetLayerId(hMeshLayerName);
     
@@ -617,7 +617,7 @@ void PWRoute::RouteLowLayerMesh(string signal) {
     }
 }
 
-void PWRoute::FindRowSNet(string componentName, string pinName, Rect2D<double> rect, int& powerY, int& gndY) {
+void PWRoute::FindRowSNet(std::string componentName, std::string pinName, Rect2D<double> rect, int& powerY, int& gndY) {
     Point2D<int> midPoint;
     midPoint.x = (rect.ll.x + rect.ur.x) / 2;
     midPoint.y = (rect.ll.y + rect.ur.y) / 2;
@@ -631,13 +631,13 @@ void PWRoute::FindRowSNet(string componentName, string pinName, Rect2D<double> r
         }
     }
     if(column == -1) {
-        cout << "ERROR: Pin's X is not in any column!" << endl;
-        cout << componentName << "/" << pinName << endl;
-        cout << "Pin: " << rect << endl;
-        cout << "xMesh : " << endl;
+        std::cout << "ERROR: Pin's X is not in any column!" << std::endl;
+        std::cout << componentName << "/" << pinName << std::endl;
+        std::cout << "Pin: " << rect << std::endl;
+        std::cout << "xMesh : " << std::endl;
         for(int i = 0; i < xMesh.size() - 1; i++) 
-            cout << xMesh[i] << " ";
-        cout << endl;
+            std::cout << xMesh[i] << " ";
+        std::cout << std::endl;
         exit(1);
     }
     
@@ -648,9 +648,9 @@ void PWRoute::FindRowSNet(string componentName, string pinName, Rect2D<double> r
     auto gndit = std::upper_bound (gndyMesh.begin(), gndyMesh.end(), midPoint.y);
 
     if(powerit == poweryMesh.begin() && gndit == gndyMesh.begin()) {
-        cout << "ERROR: Pin's Y is not in any row!" << endl;
-        cout << componentName << "/" << pinName << endl;
-        cout << "Pin: " << rect << endl;
+        std::cout << "ERROR: Pin's Y is not in any row!" << std::endl;
+        std::cout << componentName << "/" << pinName << std::endl;
+        std::cout << "Pin: " << rect << std::endl;
         exit(1);
     }
 
@@ -687,7 +687,7 @@ void PWRoute::MarkUnusablePointComp(PWRouteComponent& component) {
     else
         return;
 
-    vector<Rect2D<double>> pinRect;
+    std::vector<Rect2D<double>> pinRect;
     
     for(auto pin : component.pins_) {
         for(auto layerRect : pin.layer_rects_) {
@@ -776,9 +776,9 @@ void PWRoute::RouteSNet() {
     MarkUnusablePoint();
     DetailedRouteSNet();
     if(POWER_UNFOUND != 0 || GROUND_UNFOUND != 0)
-        cout << "ATTENTION: SOME CELLS FAIL TO ROUTE!" << endl;
+        std::cout << "ATTENTION: SOME CELLS FAIL TO ROUTE!" << std::endl;
 
-    cout << "power/ground routing done!" << endl;
+    std::cout << "power/ground routing done!" << std::endl;
 }
 
 void PWRoute::ComputeMinLength() {
@@ -803,12 +803,12 @@ void PWRoute::SetMeshWidthStep(int high_width, int high_step, int mesh_width) {
 
 void PWRoute::RunPWRoute() {
     if(verbose_ > none) {
-        cout << "high_mesh_multiple_width11: "  << high_mesh_multiple_width << endl;
-        cout << "high_mesh_multiple_step: "  << high_mesh_multiple_step << endl;
-        cout << "cluster_mesh_multiple_width: "  << cluster_mesh_multiple_width << endl;
+        std::cout << "high_mesh_multiple_width11: "  << high_mesh_multiple_width << std::endl;
+        std::cout << "high_mesh_multiple_step: "  << high_mesh_multiple_step << std::endl;
+        std::cout << "cluster_mesh_multiple_width: "  << cluster_mesh_multiple_width << std::endl;
     }
     if(db_ptr_ == NULL) {
-        cout << "no phydb in pwroute" << endl;
+        std::cout << "no phydb in pwroute" << std::endl;
         exit(1);
     }
     SetDefaultVia();
@@ -834,16 +834,16 @@ phydb::SNet* PWRoute::FindSNet(SignalUse signal) {
     }
     if(found == false) {
         if(signal == POWER) {
-            string Vdd = string("Vdd");
+            std::string Vdd = std::string("Vdd");
             snet_ptr = db_ptr_->AddSNet(Vdd, signal);
         }
         else {
-            string GND = string("GND");
+            std::string GND = std::string("GND");
             snet_ptr = db_ptr_->AddSNet(GND, signal);
         }
     }
     if(debug)
-        cout << "added net ptr: " << snet_ptr << endl;
+        std::cout << "added net ptr: " << snet_ptr << std::endl;
 
     assert(snet_ptr != nullptr);
     return snet_ptr;
@@ -856,7 +856,7 @@ void PWRoute::ExportToPhyDB() {
     phydb::SNet* power_ptr = FindSNet(POWER);
 
     for(auto wire : pwgnd_.powerWires) {
-        string stripe = string("STRIPE");
+        std::string stripe = std::string("STRIPE");
         phydb::Path* path_ptr = power_ptr->AddPath(wire.layerName, wire.width, stripe);
 
         path_ptr->SetBegin(wire.coorX[0], wire.coorY[0]);
@@ -870,11 +870,11 @@ void PWRoute::ExportToPhyDB() {
     }
 
     if(debug) {
-        cout << "phydb snet power paths size: " << power_ptr->GetPathRef().size() << endl;
-        cout << "phydb power ptr: " << power_ptr << endl;
+        std::cout << "phydb snet power paths size: " << power_ptr->GetPathRef().size() << std::endl;
+        std::cout << "phydb power ptr: " << power_ptr << std::endl;
         std::string snet_name = "Vdd";
-        cout << "phydb power ptr2: " << db_ptr_->GetSNet(snet_name) << endl;
-        cout << "power path ptr: " << &(power_ptr->GetPathRef()) << endl;
+        std::cout << "phydb power ptr2: " << db_ptr_->GetSNet(snet_name) << std::endl;
+        std::cout << "power path ptr: " << &(power_ptr->GetPathRef()) << std::endl;
     }
 
     phydb::SNet* ground_ptr = FindSNet(GROUND);
@@ -892,13 +892,13 @@ void PWRoute::ExportToPhyDB() {
         }
     }
     if(debug) {
-        cout << "phydb snet ground paths size: " << ground_ptr->GetPathRef().size() << endl;
-        cout << "phydb ground ptr: " << ground_ptr << endl;
+        std::cout << "phydb snet ground paths size: " << ground_ptr->GetPathRef().size() << std::endl;
+        std::cout << "phydb ground ptr: " << ground_ptr << std::endl;
         std::string snet_name = "GND";
-        cout << "phydb ground ptr2: " << db_ptr_->GetSNet(snet_name) << endl;
-        cout << "ground path ptr: " << &(ground_ptr->GetPathRef()) << endl;
-        cout << endl;
-        cout << " total number of snets " << db_ptr_->GetSNetRef().size() << endl;
+        std::cout << "phydb ground ptr2: " << db_ptr_->GetSNet(snet_name) << std::endl;
+        std::cout << "ground path ptr: " << &(ground_ptr->GetPathRef()) << std::endl;
+        std::cout << std::endl;
+        std::cout << " total number of snets " << db_ptr_->GetSNetRef().size() << std::endl;
     }
 
 }
