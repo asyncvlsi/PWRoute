@@ -803,7 +803,7 @@ void PWRoute::SetMeshWidthStep(int high_width, int high_step, int mesh_width) {
 
 void PWRoute::RunPWRoute() {
     if(verbose_ > none) {
-        std::cout << "high_mesh_multiple_width11: "  << high_mesh_multiple_width << std::endl;
+        std::cout << "high_mesh_multiple_width: "  << high_mesh_multiple_width << std::endl;
         std::cout << "high_mesh_multiple_step: "  << high_mesh_multiple_step << std::endl;
         std::cout << "cluster_mesh_multiple_width: "  << cluster_mesh_multiple_width << std::endl;
     }
@@ -811,13 +811,32 @@ void PWRoute::RunPWRoute() {
         std::cout << "no phydb in pwroute" << std::endl;
         exit(1);
     }
+    if(db_ptr_->GetTechPtr()->GetLayersRef().size() < high_mesh_layer) {
+	std::cout << "Error: Not enough metal layers for POWER/GROUND mesh!" << std::endl;
+	std::cout << "(High Mesh Layer is hard coded to Metal6)" << std::endl; 
+	exit(1);
+    }
     SetDefaultVia();
+    if(verbose_ > none) 
+	std::cout << "set default via done" << std::endl;
     ComputeMinLength();
+    if(verbose_ > none) 
+	std::cout << "compute min length done" << std::endl;
     LinkTrackToLayer();
+    if(verbose_ > none) 
+	std::cout << "link track to layer done" << std::endl;
     PreprocessComponents();
+    if(verbose_ > none) 
+	std::cout << "preprocess components done" << std::endl;
     SNetConfig();
+    if(verbose_ > none) 
+	std::cout << "snet config done" << std::endl;
     InitCluster();
+    if(verbose_ > none) 
+	std::cout << "initialize cluster done" << std::endl;
     RouteSNet();
+    if(verbose_ > none) 
+	std::cout << "route snet done" << std::endl;
 }
 
 phydb::SNet* PWRoute::FindSNet(SignalUse signal) {
