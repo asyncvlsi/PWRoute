@@ -69,8 +69,9 @@ class PWRoute {
     //The following three parameters related to metal layers should not be changed
     //Reinforcement horizontal connection are on metal 6
     int high_mesh_layer = 10; // Metal 6
-    int cluster_horizontal_layer = 6; //horizontal mesh between rows, metal 4
     int cluster_vertical_layer = 8; //vertical mesh between cols, metal 5
+    int cluster_horizontal_layer = 6; //horizontal mesh between rows, metal 4
+    int detailed_route_layer = 4; //vertical connection, metal 3	
 
     phydb::PhyDB* db_ptr_;
 
@@ -96,7 +97,7 @@ class PWRoute {
     void SNetConfig();
     void InitCluster();
     void RouteSNet();
-    void RouteHighLayerMesh(std::string );
+    void RouteHighLayerReinforcement(std::string );
     void RouteLowLayerMesh(std::string );
     void MarkUnusablePoint();
     int SafeBoundaryDistance();

@@ -302,7 +302,7 @@ void PWRoute::PlaceHighLayerVias(std::vector<Wire>& wires, int X, int Y,
     
 }
 
-void PWRoute::RouteHighLayerMesh(std::string signal) {
+void PWRoute::RouteHighLayerReinforcement(std::string signal) {
     Wire tmpWire;
 
     Rect2D<int> dieArea = db_ptr_->GetDesignPtr()->GetDieArea();
@@ -764,12 +764,26 @@ void PWRoute::MarkUnusablePoint() {
 }
 
 void PWRoute::RouteSNet() {
-
-    RouteHighLayerMesh("POWER"); 
+    auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
+    if((layers[0].GetDirection() == HORIZONTAL && layers.size() < high_mesh_layer) 
+    	|| (layers[0].GetDirection() == VERTICAL && layers.size() < high_mesh_layer + 2)) {
+	std::cout << "Warning: Not enough metal layers for POWER/GROUND reinforcement!" << std::endl;
+	std::cout << "if m1 is V, requires m6; if m1 is H, requires m7." << std::endl; 
+    }
+    else {
+    	RouteHighLayerReinforcement("POWER"); 
+    }
     
     RouteLowLayerMesh("POWER");
 
-    RouteHighLayerMesh("GROUND"); 
+    if((layers[0].GetDirection() == HORIZONTAL && layers.size() < high_mesh_layer) 
+    	|| (layers[0].GetDirection() == VERTICAL && layers.size() < high_mesh_layer + 2)) {
+	std::cout << "Warning: Not enough metal layers for POWER/GROUND reinforcement!" << std::endl;
+	std::cout << "if m1 is V, requires m6; if m1 is H, requires m7." << std::endl; 
+    }
+    else {
+    	RouteHighLayerReinforcement("GROUND"); 
+    }
     
     RouteLowLayerMesh("GROUND");
 
@@ -811,9 +825,12 @@ void PWRoute::RunPWRoute() {
         std::cout << "no phydb in pwroute" << std::endl;
         exit(1);
     }
-    if(db_ptr_->GetTechPtr()->GetLayersRef().size() < high_mesh_layer) {
-	std::cout << "Error: Not enough metal layers for POWER/GROUND mesh!" << std::endl;
-	std::cout << "(High Mesh Layer is hard coded to Metal6)" << std::endl; 
+    auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
+    if((layers[0].GetDirection() == HORIZONTAL && layers.size() < cluster_horizontal_layer) 
+    	|| (layers[0].GetDirection() == VERTICAL && layers.size() < cluster_horizontal_layer + 2)) {
+	std::cout << "ERROR: Not enough metal layers for POWER/GROUND mesh!" << std::endl;
+	std::cout << " ---- Requires at least two vertical metal layers above metal2." << std::endl; 
+	std::cout << " ---- i.e. if m1 is H, vertical stripe requires m6; if m1 is V, it requires m5." << std::endl; 
 	exit(1);
     }
     SetDefaultVia();
