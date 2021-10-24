@@ -893,11 +893,11 @@ void PWRoute::ExportToPhyDB() {
 
     for(auto wire : pwgnd_.powerWires) {
         std::string stripe = std::string("STRIPE");
-        phydb::Path* path_ptr = power_ptr->AddPath(wire.layerName, wire.width, stripe);
+        phydb::Path* path_ptr = power_ptr->AddPath(wire.layerName, stripe, wire.width);
 
-        path_ptr->SetBegin(wire.coorX[0], wire.coorY[0]);
+        path_ptr->AddRoutingPoint(wire.coorX[0], wire.coorY[0]);
         if(wire.numPathPoint == 2) {
-            path_ptr->SetEnd(wire.coorX[1], wire.coorY[1]);
+            path_ptr->AddRoutingPoint(wire.coorX[1], wire.coorY[1]);
         }
         
         if(wire.viaName != "") {
@@ -906,21 +906,21 @@ void PWRoute::ExportToPhyDB() {
     }
 
     if(debug) {
-        std::cout << "phydb snet power paths size: " << power_ptr->GetPathRef().size() << std::endl;
+        std::cout << "phydb snet power paths size: " << power_ptr->GetPathsRef().size() << std::endl;
         std::cout << "phydb power ptr: " << power_ptr << std::endl;
         std::string snet_name = "Vdd";
         std::cout << "phydb power ptr2: " << db_ptr_->GetSNet(snet_name) << std::endl;
-        std::cout << "power path ptr: " << &(power_ptr->GetPathRef()) << std::endl;
+        std::cout << "power path ptr: " << &(power_ptr->GetPathsRef()) << std::endl;
     }
 
     phydb::SNet* ground_ptr = FindSNet(GROUND);
     //export GROUND
     for(auto wire : pwgnd_.gndWires) {
-        phydb::Path* path_ptr = ground_ptr->AddPath(wire.layerName, wire.width, "STRIPE");
+        phydb::Path* path_ptr = ground_ptr->AddPath(wire.layerName, "STRIPE", wire.width);
 
-        path_ptr->SetBegin(wire.coorX[0], wire.coorY[0]);
+        path_ptr->AddRoutingPoint(wire.coorX[0], wire.coorY[0]);
         if(wire.numPathPoint == 2) {
-            path_ptr->SetEnd(wire.coorX[1], wire.coorY[1]);
+            path_ptr->AddRoutingPoint(wire.coorX[1], wire.coorY[1]);
         }
         
         if(wire.viaName != "") {
@@ -928,11 +928,11 @@ void PWRoute::ExportToPhyDB() {
         }
     }
     if(debug) {
-        std::cout << "phydb snet ground paths size: " << ground_ptr->GetPathRef().size() << std::endl;
+        std::cout << "phydb snet ground paths size: " << ground_ptr->GetPathsRef().size() << std::endl;
         std::cout << "phydb ground ptr: " << ground_ptr << std::endl;
         std::string snet_name = "GND";
         std::cout << "phydb ground ptr2: " << db_ptr_->GetSNet(snet_name) << std::endl;
-        std::cout << "ground path ptr: " << &(ground_ptr->GetPathRef()) << std::endl;
+        std::cout << "ground path ptr: " << &(ground_ptr->GetPathsRef()) << std::endl;
         std::cout << std::endl;
         std::cout << " total number of snets " << db_ptr_->GetSNetRef().size() << std::endl;
     }
