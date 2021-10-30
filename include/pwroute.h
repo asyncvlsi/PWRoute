@@ -17,6 +17,7 @@ class Wire {
 public:
     double coorX[2];
     double coorY[2];
+    double ext[2];
     int numPathPoint;
     std::string layerName;
     std::string viaName;
@@ -26,9 +27,12 @@ public:
 
 class PWGND {
 public:
-    int pitch;
-    int meshWidth;
-    int vMeshSpacing;
+    int hmeshWidth;
+    int hmeshExt;
+    int vmeshWidth;
+    int vmeshExt;
+    
+    int vmeshSpacing;
     int signalNetWidth;
     //string meshLayerName;
     //string routeLayerName;
@@ -51,6 +55,8 @@ public:
 
     std::map<int, std::set<int>> M2Fill;
     std::set<Point2D<int>> unusablePoints;
+    std::set<Point2D<int>> usedConnectionPoints;
+    bool use_adj_mesh_point_flag_;
     std::set<Point2D<int>> powerM2Points;
     std::set<Point2D<int>> gndM2Points;
 };
@@ -69,6 +75,7 @@ class PWRoute {
     //The following three parameters related to metal layers should not be changed
     //Reinforcement horizontal connection are on metal 6
     int high_mesh_layer = 10; // Metal 6
+    bool use_reinforcement_ = true;
     int cluster_vertical_layer = 8; //vertical mesh between cols, metal 5
     int cluster_horizontal_layer = 6; //horizontal mesh between rows, metal 4
     int detailed_route_layer = 4; //vertical connection, metal 3	
@@ -96,7 +103,10 @@ class PWRoute {
     void PreprocessComponents();
     void SNetConfig();
     void InitCluster();
+    bool AdjMeshPointCheck(int, int, int);
+    void AdjMeshPointFlag();
     void RouteSNet();
+    void M3CloseViasPad();
     void RouteHighLayerReinforcement(std::string );
     void RouteLowLayerMesh(std::string );
     void MarkUnusablePoint();
@@ -134,6 +144,7 @@ class PWRoute {
     void SetDBPtr(phydb::PhyDB* p);
 
     void SetMeshWidthStep(int, int, int);
+    void SetReinforcement(bool ); 
     void RunPWRoute();
     void ExportToPhyDB();
 

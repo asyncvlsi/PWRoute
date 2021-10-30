@@ -155,6 +155,25 @@ void PWRoute::findClosestTouchPoints(std::vector<Rect2D<double>>& rects, std::ma
     }
 }
 
+
+/*
+ * returns true if point(x, y) is not blocked by its neighbors
+ */
+bool PWRoute::AdjMeshPointCheck(int x, int y, int track_step) {
+   if(pwgnd_.use_adj_mesh_point_flag_)
+      return true;
+   else {
+      Point2D<int> right_point(x + track_step, y);
+      Point2D<int> left_point(x - track_step, y);
+      if(pwgnd_.usedConnectionPoints.find(left_point) != pwgnd_.usedConnectionPoints.end()
+		      || pwgnd_.usedConnectionPoints.find(right_point) != pwgnd_.usedConnectionPoints.end())
+         return false;
+      else
+	 return true;
+
+   }
+}
+
 bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
         std::vector<Wire>& Wires, Point2D<int>& powerPoint) {
     
@@ -222,9 +241,19 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     Track track = tracks[layerid_2_trackid_[4]]; //M3
     
     findClosestTouchPoints(pinRect, trackClosestPinPoint, track, width / 2, signalY);
+    if(verbose_ >= debug && component.name_ == "v_50_6" && signal == "POWER") {
+	for(auto p : trackClosestPinPoint) 
+	    std::cout << p.first << " " << p.second << std::endl;
+    }
+    
     //findTouchPointsNoTrack(pinRect, touchPinPoint, track, width / 2, signalY);
     findFarthestTouchPoints(pinRect, trackFarthestPinPoint, track, width / 2, signalY);
-    
+    if(verbose_ >= debug && component.name_ == "v_50_6" && signal == "POWER") {
+	for(auto p : trackFarthestPinPoint) 
+	    std::cout << p.first << " " << p.second << std::endl;
+    }
+
+
     std::string M1_name = layers[0].GetName();
     int M1_width = layers[0].GetWidth() * dbuPerMicron;
     int M1_pitch = layers[0].GetPitchX() * dbuPerMicron;
@@ -336,7 +365,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         M2cover = M2wideFail && M2thinFail;  
         
-        if(component.name_ == "cx1") {
+        if(verbose_ > 0 && component.name_ == "cx1") {
             std::cout << signal << ":" << std::endl;
             std::cout << "close M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << std::endl;
             std::cout << "touchpoint x : " << touchPoint.x << " " << touchPoint.y;
@@ -360,7 +389,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             std::cout << V1cover << M2cover << M1cover << std::endl;
         
         
-        if(V1cover == false && M2cover == false && M1cover == false) {       
+        if(V1cover == false && M2cover == false && M1cover == false && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {       
             foundM1M3 = true;
             break;
         }
@@ -481,7 +510,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             std::cout << V1cover << M2cover << M1cover << std::endl;
         
  
-       if(V1cover == false && M2cover == false && M1cover == false) {       
+       if(V1cover == false && M2cover == false && M1cover == false && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {       
             foundM1M3 = true;
             break;
         }
@@ -526,9 +555,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             else
                 zRouteOffset = - M3_pitch;
 
-            tmpWire.coorX[0] = touchX + zRouteOffset;//
+            tmpWire.coorX[0] = touchX + zRouteOffset;
             tmpWire.coorY[0] = touchY;
-            tmpWire.coorX[1] = touchX + zRouteOffset;//
+            tmpWire.coorX[1] = touchX + zRouteOffset;
             if(fabs(signalY - touchY) >= M3_minlength)
                 tmpWire.coorY[1] = signalY;
             else {
@@ -554,7 +583,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             tmpWire.coorX[0] = touchX;
             tmpWire.coorY[0] = touchY;
             tmpWire.coorX[1] = touchX;
-            if(fabs(signalY - touchY) >= M3_minlength)
+            if(fabs(signalY - touchY) >= M3_minlength) //for min area
                 tmpWire.coorY[1] = signalY;
             else {
                 tmpWire.coorY[1] = (signalY > touchY)? touchY + M3_minlength : touchY - M3_minlength;
@@ -566,18 +595,19 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         }
 
-        int viaID = topLayerId_2_viaId_[6];
+        int viaID = topLayerId_2_viaId_[cluster_horizontal_layer]; //M4
         tmpWire.coorX[0] = touchX + zRouteOffset;
         tmpWire.coorY[0] = signalY;
         tmpWire.numPathPoint = 1;
         tmpWire.layerName = layers[6].GetName();
         tmpWire.width = 0;
         tmpWire.viaName = vias[viaID].GetName();
+	pwgnd_.usedConnectionPoints.insert(Point2D<int>(tmpWire.coorX[0], tmpWire.coorY[0]));
         Wires.push_back(tmpWire);//M3 to M4 via, mesh
 
 
-        viaID = topLayerId_2_viaId_[4];
-        tmpWire.coorX[0] = touchX + zRouteOffset;//
+        viaID = topLayerId_2_viaId_[detailed_route_layer]; //M3
+        tmpWire.coorX[0] = touchX + zRouteOffset;
         tmpWire.coorY[0] = touchY;
         tmpWire.numPathPoint = 1;
         tmpWire.layerName = layers[4].GetName();
@@ -714,7 +744,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                 break;
             }
         } // m2 side min area doesn't conflict with m2 obs       
-        if(!M2cover) {
+        if(!M2cover && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {
             foundM2 = true;
             break;
         }
@@ -811,6 +841,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
         tmpWire.width = 0;
         viaID = topLayerId_2_viaId_[6];
         tmpWire.viaName = vias[viaID].GetName();
+	pwgnd_.usedConnectionPoints.insert(Point2D<int>(tmpWire.coorX[0], tmpWire.coorY[0]));
         Wires.push_back(tmpWire); //M3-M4 via
 
     }
@@ -863,9 +894,6 @@ void PWRoute::DetailedRouteSNetComp(PWRouteComponent& component) {
     }
     else
         GROUND_UNFOUND++;
-    
-    //if(component.name_ == "p_atv__56_57_6_acx1")
-    //    cout << "component: " << component.name_ << " " << M1power << M2power << M1M3power << " " << M1ground << M2ground << M1M3ground << endl;
     
 }
 
