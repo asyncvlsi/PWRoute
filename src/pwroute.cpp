@@ -525,7 +525,10 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
         tmpWire.coorY[0] = dieArea.ll.y;
         tmpWire.coorX[1] = xMesh[i] + xoffset;
         tmpWire.coorY[1] = dieArea.ur.y;
-        tmpWire.numPathPoint = 2;
+        tmpWire.ext[0] = -1;
+	tmpWire.ext[1] = -1;
+	
+	tmpWire.numPathPoint = 2;
         wires.push_back(tmpWire);
     }
 
