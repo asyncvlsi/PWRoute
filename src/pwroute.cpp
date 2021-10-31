@@ -233,7 +233,7 @@ void PWRoute::SNetConfig() {
     
     /*set vmeshSpacing for vertical mesh M5*/
     auto* spacing_table = layers[cluster_vertical_layer].GetSpacingTable();
-    double m5_spacing = spacing_table->GetSpacingForWidth(pwgnd_.vmeshWidth);
+    double m5_spacing = spacing_table->GetSpacingForWidth((double) pwgnd_.vmeshWidth / (double)dbuPerMicron);
     pwgnd_.vmeshSpacing = pwgnd_.vmeshWidth + m5_spacing * dbuPerMicron;
     if(verbose_ > 1)
     	std::cout << "vmesh width: " << pwgnd_.vmeshWidth << " m5_spacing: " << m5_spacing << " vmesh spacing: " << pwgnd_.vmeshSpacing << std::endl; 
