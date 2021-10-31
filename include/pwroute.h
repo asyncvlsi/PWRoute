@@ -42,7 +42,7 @@ public:
     int vmeshWidth;
     int vmeshExt;
     
-    int vmeshSpacing;
+    int vmeshPitch;
     int signalNetWidth;
     //string meshLayerName;
     //string routeLayerName;
