@@ -22,6 +22,16 @@ public:
     std::string layerName;
     std::string viaName;
     int width;
+    Wire() {
+        coorX[0] = -1;
+        coorY[0] = -1;
+        ext[0] = -1;
+        coorX[1] = -1;
+        coorY[1] = -1;
+        ext[1] = -1;
+	numPathPoint = 0;
+	width = 0;
+    }
 
 };
 

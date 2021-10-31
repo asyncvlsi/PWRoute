@@ -721,7 +721,6 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 
     for(auto pinPoint : trackClosestPinPoint) { // Cell library gaurantee min area on M2
         int trackIdx = pinPoint.first;
-        //touchX = pinPoint.first;
         touchX = track.GetStart() + trackIdx * track.GetStep();
         touchY = pinPoint.second;
  
