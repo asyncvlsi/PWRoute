@@ -675,7 +675,7 @@ void PWRoute::FindRowSNet(std::string componentName, std::string pinName, Rect2D
         std::cout << componentName << "/" << pinName << std::endl;
         std::cout << "Pin: " << rect << std::endl;
         std::cout << "xMesh : " << std::endl;
-        for(int i = 0; i < xMesh.size() - 1; i++) 
+        for(int i = 0; i < xMesh.size(); i++) 
             std::cout << xMesh[i] << " ";
         std::cout << std::endl;
         exit(1);
