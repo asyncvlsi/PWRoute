@@ -6,7 +6,7 @@ namespace pwroute {
 void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, Point2D<int> location, Point2D<int> origin, Point2D<int> size) {
     int llx, lly, urx, ury;
     switch(orient) {
-        case 0: { // "N"
+        case phydb::CompOrient::N: { // "N"
             llx = location.x + origin.x + rect.ll.x;
             lly = location.y + origin.y + rect.ll.y;
             urx = location.x + origin.x + rect.ur.x;
@@ -14,7 +14,7 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             rect.Set(llx, lly, urx, ury);
             break;
         }
-        case 1: { // "S"
+        case phydb::CompOrient::S: { // "S"
             llx = location.x + origin.x + size.x - rect.ur.x;
             lly = location.y + origin.y + size.y - rect.ur.y;
             urx = location.x + origin.x + size.x - rect.ll.x;
@@ -22,21 +22,21 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             rect.Set(llx, lly, urx, ury);
             break;
         }
-        case 2: { // "W"
+        case phydb::CompOrient::W: { // "W"
             float centerx = (rect.ll.x + rect.ur.x)/2.0;
             float centery = (rect.ll.y + rect.ur.y)/2.0;
             int rectwidth = rect.ur.x - rect.ll.x;
             int rectheight = rect.ur.y - rect.ll.y;
-            float centerxprime = -centery; 
+            float centerxprime = -centery;
             // assumption origin.x and origin.y is always 0
             // cos(90deg)centerx - sin(90deg)centery
-            float centeryprime =  centerx; 
+            float centeryprime =  centerx;
             // sin(90deg)centerx + cos(90deg)centery
             int tmplength;
-            tmplength = rectwidth; 
+            tmplength = rectwidth;
             // 90deg rotation, width and height swap
             rectwidth = rectheight;
-            rectheight = tmplength; 
+            rectheight = tmplength;
             // macro width and height should also swap, but we cannot do it here, because we are at pin level now
             // but remember, when we need macro width, we should call its height, and vice versa
             llx = std::round(centerxprime - rectwidth/2.0);
@@ -58,21 +58,21 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             break;
         }
 
-        case 3 : {   //"E"
+        case phydb::CompOrient::E : {   //"E"
             float centerx = (rect.ll.x + rect.ur.x)/2.0;
             float centery = (rect.ll.y + rect.ur.y)/2.0;
             int rectwidth = rect.ur.x - rect.ll.x;
             int rectheight = rect.ur.y - rect.ll.y;
-            float centerxprime =  centery; 
+            float centerxprime =  centery;
             // assumption origin.x and origin.y is always 0
             // cos(270deg)centerx - sin(270deg)centery
-            float centeryprime = -centerx; 
+            float centeryprime = -centerx;
             // sin(270deg)centerx + cos(270deg)centery
             int tmplength;
-            tmplength = rectwidth; 
+            tmplength = rectwidth;
             // 270deg rotation, width and height swap
             rectwidth = rectheight;
-            rectheight = tmplength; 
+            rectheight = tmplength;
             // macro width and height should also swap, but we cannot do it here, because we are at pin level now
             // but remember, when we need macro width, we should call its height, and vice versa
             llx = centerxprime - rectwidth/2.0;
@@ -93,7 +93,7 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             break;
         }
 
-        case 4: { // "FN"
+        case phydb::CompOrient::FN: { // "FN"
             llx = location.x + size.x - rect.ur.x;
             lly = location.y + rect.ll.y;
             urx = location.x + size.x - rect.ll.x;
@@ -106,7 +106,7 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             rect.Set(llx, lly, urx, ury);
             break;
         }
-        case 5: { //"FS"
+        case phydb::CompOrient::FS: { //"FS"
             llx = location.x + rect.ll.x;
             lly = location.y + size.y - rect.ur.y;
             urx = location.x + rect.ur.x;
@@ -119,21 +119,21 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             rect.Set(llx, lly, urx, ury);
             break;
         }
-        case 6: { //"FW" 
+        case phydb::CompOrient::FW: { //"FW"
             float centerx = (rect.ll.x + rect.ur.x)/2.0;
             float centery = (rect.ll.y + rect.ur.y)/2.0;
             int rectwidth = rect.ur.x - rect.ll.x;
             int rectheight = rect.ur.y - rect.ll.y;
-            float centerxprime = -centery; 
+            float centerxprime = -centery;
             // assumption origin.x and origin.y is always 0
             // cos(90deg)centerx - sin(90deg)centery
-            float centeryprime =  centerx; 
+            float centeryprime =  centerx;
             // sin(90deg)centerx + cos(90deg)centery
             int tmplength;
-            tmplength = rectwidth; 
+            tmplength = rectwidth;
             // 90deg rotation, width and height swap
             rectwidth = rectheight;
-            rectheight = tmplength; 
+            rectheight = tmplength;
             // macro width and height should also swap, but we cannot do it here, because we are at pin level now
             // but remember, when we need macro width, we should call its height, and vice versa
             llx = std::round(centerxprime - rectwidth/2.0);
@@ -165,21 +165,21 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             rect.Set(llx, lly, urx, ury);
             break;
         }
-        case 7: { //" FE"
+        case phydb::CompOrient::FE: { //" FE"
             float centerx = (rect.ll.x + rect.ur.x)/2.0;
             float centery = (rect.ll.y + rect.ur.y)/2.0;
             int rectwidth = rect.ur.x - rect.ll.x;
             int rectheight = rect.ur.y - rect.ll.y;
-            float centerxprime =  centery; 
+            float centerxprime =  centery;
             // assumption origin.x and origin.y is always 0
             // cos(270deg)centerx - sin(270deg)centery
-            float centeryprime = -centerx; 
+            float centeryprime = -centerx;
             // sin(270deg)centerx + cos(270deg)centery
             int tmplength;
-            tmplength = rectwidth; 
+            tmplength = rectwidth;
             // 270deg rotation, width and height swap
             rectwidth = rectheight;
-            rectheight = tmplength; 
+            rectheight = tmplength;
             // macro width and height should also swap, but we cannot do it here, because we are at pin level now
             // but remember, when we need macro width, we should call its height, and vice versa
             llx = centerxprime - rectwidth/2.0;
@@ -212,7 +212,7 @@ void PWRouteComponent::ComputeLocation(Rect2D<double>& rect, CompOrient orient, 
             break;
         }
         default: {
-            std::cout << "unknown orientation for component: " << orient << std::endl;
+            std::cout << "unknown orientation for component: " << phydb::CompOrientStr(orient) << std::endl;
             break;
         }
     }

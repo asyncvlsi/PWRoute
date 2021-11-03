@@ -10,22 +10,22 @@ void PWRoute::LinkTrackToLayer() {
     auto tracks_ref = db_ptr_->GetTracksRef();
 
     for(auto layer : db_ptr_->GetLayersRef()) {
-        if(layer.GetType() == ROUTING) {    //only on routing layer
-            if(layer.GetDirection() == HORIZONTAL) { // HORIZONTAL corresponds to Y location of a track
+        if(layer.GetType() == phydb::LayerType::ROUTING) {    //only on routing layer
+            if(layer.GetDirection() == phydb::MetalDirection::HORIZONTAL) { // HORIZONTAL corresponds to Y location of a track
                 for(int i = 0; i < tracks_ref.size(); i++) {
                     auto track = tracks_ref[i];
                     for(auto layerName : track.GetLayerNames()) {
-                        if(layerName == layer.GetName() && track.GetDirection() == Y) {
+                        if(layerName == layer.GetName() && track.GetDirection() == phydb::XYDirection::Y) {
                             layerid_2_trackid_.insert( std::pair<int, int> (layer.GetID(), i));
                         }
                     }
                 }
             }
-            else if(layer.GetDirection() == VERTICAL) { // VERTICAL corresponds to X location of a track
+            else if(layer.GetDirection() == phydb::MetalDirection::VERTICAL) { // VERTICAL corresponds to X location of a track
                 for(int i = 0; i < tracks_ref.size(); i++) {
                     auto track = tracks_ref[i];
                     for(auto layerName : track.GetLayerNames()){
-                        if(layerName == layer.GetName() && track.GetDirection() == X) {
+                        if(layerName == layer.GetName() && track.GetDirection() == phydb::XYDirection::X) {
                             layerid_2_trackid_.insert( std::pair<int, int> (layer.GetID(), i));
                         }
                     }
@@ -44,7 +44,7 @@ void PWRoute::SetDefaultVia() {
     auto layer_v = db_ptr_->GetTechPtr()->GetLayersRef();
     auto vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     for(int layerid = 0; layerid < layer_v.size(); layerid++) {
-        if(layer_v[layerid].GetType() != ROUTING)
+        if(layer_v[layerid].GetType() != phydb::LayerType::ROUTING)
             continue;
         std::string layer_name = layer_v[layerid].GetName();
 
@@ -217,7 +217,7 @@ void PWRoute::SNetConfig() {
     pwgnd_.vmeshExt = FitGrid(pwgnd_.vmeshExt, manufacturingGrid * dbuPerMicron / 2);
     
         auto layers = db_ptr_->GetLayersRef();
-    if(layers[0].GetDirection() == HORIZONTAL) {
+    if(layers[0].GetDirection() == phydb::MetalDirection::HORIZONTAL) {
 	    pwgnd_.vMeshLayerName = db_ptr_->GetLayersRef().at(cluster_horizontal_layer).GetName(); //M4
 	    pwgnd_.hMeshLayerName = db_ptr_->GetLayersRef().at(cluster_vertical_layer).GetName(); //M5
     }
@@ -805,8 +805,8 @@ void PWRoute::MarkUnusablePoint() {
 
 void PWRoute::RouteSNet() {
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
-    if((layers[0].GetDirection() == VERTICAL && layers.size() < high_mesh_layer) 
-    	|| (layers[0].GetDirection() == HORIZONTAL && layers.size() < high_mesh_layer + 2)) {
+    if((layers[0].GetDirection() == phydb::MetalDirection::VERTICAL && layers.size() < high_mesh_layer)
+    	|| (layers[0].GetDirection() == phydb::MetalDirection::HORIZONTAL && layers.size() < high_mesh_layer + 2)) {
 	std::cout << "Warning: Not enough metal layers for POWER/GROUND reinforcement!" << std::endl;
 	std::cout << "if m1 is V, requires m6; if m1 is H, requires m7." << std::endl; 
     }
@@ -820,8 +820,8 @@ void PWRoute::RouteSNet() {
     
     RouteLowLayerMesh("POWER");
 
-    if((layers[0].GetDirection() == VERTICAL && layers.size() < high_mesh_layer) 
-    	|| (layers[0].GetDirection() == HORIZONTAL && layers.size() < high_mesh_layer + 2)) {
+    if((layers[0].GetDirection() == phydb::MetalDirection::VERTICAL && layers.size() < high_mesh_layer)
+    	|| (layers[0].GetDirection() == phydb::MetalDirection::HORIZONTAL && layers.size() < high_mesh_layer + 2)) {
 	std::cout << "Warning: Not enough metal layers for POWER/GROUND reinforcement!" << std::endl;
 	std::cout << "if m1 is V, requires m6; if m1 is H, requires m7." << std::endl; 
     }
@@ -960,7 +960,7 @@ void PWRoute::ComputeMinLength() {
     double manufacturingGrid = db_ptr_->GetTechPtr()->GetManufacturingGrid();
     double min_length;
     for(int i = 0; i < layers.size(); i++) {
-        if(layers[i].GetType() == ROUTING)
+        if(layers[i].GetType() == phydb::LayerType::ROUTING)
             min_length = FitGrid(layers[i].GetArea() / layers[i].GetWidth(), manufacturingGrid);
         else
             min_length = -1;
@@ -992,8 +992,8 @@ void PWRoute::RunPWRoute() {
         exit(1);
     }
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
-    if((layers[0].GetDirection() == HORIZONTAL && layers.size() < cluster_horizontal_layer) 
-    	|| (layers[0].GetDirection() == VERTICAL && layers.size() < cluster_horizontal_layer + 2)) {
+    if((layers[0].GetDirection() == phydb::MetalDirection::HORIZONTAL && layers.size() < cluster_horizontal_layer)
+    	|| (layers[0].GetDirection() == phydb::MetalDirection::VERTICAL && layers.size() < cluster_horizontal_layer + 2)) {
 	std::cout << "ERROR: Not enough metal layers for POWER/GROUND mesh!" << std::endl;
 	std::cout << " ---- Requires at least two vertical metal layers above metal2." << std::endl; 
 	std::cout << " ---- i.e. if m1 is H, vertical stripe requires m6; if m1 is V, it requires m5." << std::endl; 
@@ -1035,7 +1035,7 @@ phydb::SNet* PWRoute::FindSNet(SignalUse signal) {
         }
     }
     if(found == false) {
-        if(signal == POWER) {
+        if(signal == phydb::SignalUse::POWER) {
             std::string Vdd = std::string("Vdd");
             snet_ptr = db_ptr_->AddSNet(Vdd, signal);
         }
@@ -1055,7 +1055,7 @@ void PWRoute::ExportToPhyDB() {
     bool debug = false;
     
     //export POWER
-    phydb::SNet* power_ptr = FindSNet(POWER);
+    phydb::SNet* power_ptr = FindSNet(phydb::SignalUse::POWER);
     
     for(auto wire : pwgnd_.powerWires) {
         std::string stripe = std::string("STRIPE");
@@ -1085,7 +1085,7 @@ void PWRoute::ExportToPhyDB() {
         std::cout << "power path ptr: " << &(power_ptr->GetPathsRef()) << std::endl;
     }
 
-    phydb::SNet* ground_ptr = FindSNet(GROUND);
+    phydb::SNet* ground_ptr = FindSNet(phydb::SignalUse::GROUND);
     //export GROUND
     for(auto wire : pwgnd_.gndWires) {
         phydb::Path* path_ptr = ground_ptr->AddPath(wire.layerName, "STRIPE", wire.width);
