@@ -104,6 +104,20 @@ else()
     set(Galois_FOUND FALSE)
 endif()
 
+if (UNIX AND (NOT APPLE))
+    find_library(
+        NUMA_LIBRARY
+        NAMES numa
+    )
+    if (NUMA_LIBRARY)
+        set(Galois_LIBRARIES ${Galois_LIBRARIES} ${NUMA_LIBRARY})
+        message(STATUS "Found libnuma: " ${NUMA_LIBRARY})
+    else()
+        message(STATUS "Cannot find libnuma")
+        set(Galois_FOUND FALSE)
+    endif()
+endif()
+
 SET(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.69.0 COMPONENTS log_setup log REQUIRED)
 message(STATUS "Boost library path: ${Boost_LIBRARY_DIRS}")
@@ -146,7 +160,11 @@ if (BUILD_BIN)
     add_executable(PWRoute test/main.cpp)
     if(Galois_FOUND)
         target_link_libraries(PWRoute 
-            phydb pwroute galois_eda galois_shmem pthread numa)
+            phydb 
+            pwroute 
+            pthread
+            ${Galois_LIBRARIES}
+            )
     else ()
         target_link_libraries(PWRoute phydb pwroute)
     endif()
