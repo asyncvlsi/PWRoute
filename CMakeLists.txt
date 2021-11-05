@@ -77,6 +77,33 @@ else ()
     message(STATUS "libphydb.a found")
 endif()
 
+message(STATUS "Detecting Galois libraries...")
+set(Galois_FOUND TRUE)
+find_library(
+    GALOIS_EDA_LIBRARY
+    NAMES galois_eda
+    PATHS $ENV{ACT_HOME}/lib
+)
+if (GALOIS_EDA_LIBRARY)
+    set(Galois_LIBRARIES ${GALOIS_EDA_LIBRARY})
+    message(STATUS "Found libgalois_eda.a: " ${GALOIS_EDA_LIBRARY})
+else()
+    message(STATUS "Cannot find libgalois_eda.a")
+    set(Galois_FOUND FALSE)
+endif()
+find_library(
+    GALOIS_SHMEM_LIBRARY
+    NAMES galois_shmem
+    PATHS $ENV{ACT_HOME}/lib
+)
+if (GALOIS_SHMEM_LIBRARY)
+    set(Galois_LIBRARIES ${Galois_LIBRARIES} ${GALOIS_SHMEM_LIBRARY})
+    message(STATUS "Found libgalois_shmem.a: " ${GALOIS_SHMEM_LIBRARY})
+else()
+    message(STATUS "Cannot find libgalois_shmem.a")
+    set(Galois_FOUND FALSE)
+endif()
+
 SET(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.69.0 COMPONENTS log_setup log REQUIRED)
 message(STATUS "Boost library path: ${Boost_LIBRARY_DIRS}")
@@ -115,11 +142,15 @@ add_library(pwroute
 target_link_libraries(pwroute
     lef def phydb)
 
-#add_executable(pwroute_test
-#    test/test.cpp)
-#target_link_libraries(pwroute_test
-#	phydb pwroute 
-#    )
+if (BUILD_BIN)
+    add_executable(PWRoute test/main.cpp)
+    if(Galois_FOUND)
+        target_link_libraries(PWRoute 
+            phydb pwroute galois_eda galois_shmem pthread numa)
+    else ()
+        target_link_libraries(PWRoute phydb pwroute)
+    endif()
+endif ()
 
 ######################################
 # specify the installation directory: ${ACT_HOME}

@@ -12,7 +12,7 @@ void PWRoute::LinkTrackToLayer() {
     for(auto layer : db_ptr_->GetLayersRef()) {
         if(layer.GetType() == phydb::LayerType::ROUTING) {    //only on routing layer
             if(layer.GetDirection() == phydb::MetalDirection::HORIZONTAL) { // HORIZONTAL corresponds to Y location of a track
-                for(int i = 0; i < tracks_ref.size(); i++) {
+                for(uint i = 0; i < tracks_ref.size(); i++) {
                     auto track = tracks_ref[i];
                     for(auto layerName : track.GetLayerNames()) {
                         if(layerName == layer.GetName() && track.GetDirection() == phydb::XYDirection::Y) {
@@ -22,7 +22,7 @@ void PWRoute::LinkTrackToLayer() {
                 }
             }
             else if(layer.GetDirection() == phydb::MetalDirection::VERTICAL) { // VERTICAL corresponds to X location of a track
-                for(int i = 0; i < tracks_ref.size(); i++) {
+                for(uint i = 0; i < tracks_ref.size(); i++) {
                     auto track = tracks_ref[i];
                     for(auto layerName : track.GetLayerNames()){
                         if(layerName == layer.GetName() && track.GetDirection() == phydb::XYDirection::X) {
@@ -43,13 +43,13 @@ void PWRoute::SetDefaultVia() {
     bool debug = false;
     auto layer_v = db_ptr_->GetTechPtr()->GetLayersRef();
     auto vias = db_ptr_->GetTechPtr()->GetLefViasRef();
-    for(int layerid = 0; layerid < layer_v.size(); layerid++) {
+    for(uint layerid = 0; layerid < layer_v.size(); layerid++) {
         if(layer_v[layerid].GetType() != phydb::LayerType::ROUTING)
             continue;
         std::string layer_name = layer_v[layerid].GetName();
 
         int found_lefvia_id = -1;
-        for(int lefvia_id = 0; lefvia_id < vias.size(); lefvia_id++) {
+        for(uint lefvia_id = 0; lefvia_id < vias.size(); lefvia_id++) {
             auto lefvia = vias[lefvia_id];
             auto layer_rects = lefvia.GetLayerRectsRef();
             if(layer_rects[0].layer_name_ == layer_name || 
@@ -68,8 +68,8 @@ void PWRoute::SetDefaultVia() {
 
 void PWRoute::InitCluster() {
     bool debug = false;
-    int lx, ux, ly, uy;
-    int cnt_y = 0, cnt_x = 0;
+    int lx = -1, ux = -1, ly = -1, uy = -1;
+    int cnt_y = 0;
     
     int pre_ux = 0, pre_uy;
     int xoffset = pwgnd_.vmeshWidth + pwgnd_.vmeshPitch / 2;
@@ -100,7 +100,7 @@ void PWRoute::InitCluster() {
         pre_ux = ux;
 
         //iterate 
-        for(int i = 0; i < ly_v.size(); i++) {
+        for(uint i = 0; i < ly_v.size(); i++) {
             ly = ly_v[i];
             if(pre_uy != 0 && ly != pre_uy) //if two rows has a gap, use the previous uy
                 ly = pre_uy;
@@ -139,7 +139,7 @@ void PWRoute::InitCluster() {
     pwgnd_.xMesh.push_back(std::min(x1, x2));  //The right boundary  
     if(debug) {
         std::cout << "xMesh: " << std::endl;
-        for(int i = 0; i < pwgnd_.xMesh.size(); i++)
+        for(uint i = 0; i < pwgnd_.xMesh.size(); i++)
             std::cout << pwgnd_.xMesh[i] << " ";
         std::cout << std::endl;
     }
@@ -176,7 +176,7 @@ void PWRoute::SNetConfig() {
     double h = rect.URX() - rect.LLX();
     double v = rect.URY() - rect.LLY();
     int viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
-    pwgnd_.hmeshWidth = std::max(cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
+    pwgnd_.hmeshWidth = std::max((int) cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
     pwgnd_.hmeshWidth = FitGrid(pwgnd_.hmeshWidth, manufacturingGrid * dbuPerMicron);
     if(verbose_ > 1)
     	std::cout << "hmeshWidth: " << pwgnd_.hmeshWidth << std::endl;
@@ -200,7 +200,7 @@ void PWRoute::SNetConfig() {
     h = rect.URX() - rect.LLX();
     v = rect.URY() - rect.LLY();
     viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
-    pwgnd_.vmeshWidth = std::max(cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
+    pwgnd_.vmeshWidth = std::max((int) cluster_mesh_multiple_width * pwgnd_.signalNetWidth, viaLength); 
     pwgnd_.vmeshWidth = FitGrid(pwgnd_.vmeshWidth, manufacturingGrid * dbuPerMicron);
 
     if(verbose_ > 1)
@@ -288,7 +288,7 @@ int PWRoute::SafeBoundaryDistance() {
 }
 
 void PWRoute::PlaceHighLayerVias(std::vector<Wire>& wires, int X, int Y, 
-        std::string topLayerName, int viaIdx, int length, int viaDistance, int layerWidth) {
+        std::string topLayerName, int viaIdx, int length, int viaDistance) {
     
     auto& vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
@@ -387,14 +387,14 @@ void PWRoute::RouteHighLayerReinforcement(std::string signal) {
             yrange.end = tmpWire.coorY[0] + width / 2; 
             yranges.push_back(yrange);
     
-            for(int i = vlayerID + 2; i <= lastHLayerID; i += 2) { //M5-M6
-                int viaIdx = topLayerId_2_viaId_[i];
-                std::string topLayerName = layers[i].GetName();
-                int layerWidth = layers[i].GetWidth() * dbuPerMicron;
+            for(int l = vlayerID + 2; l <= lastHLayerID; l += 2) { //M5-M6
+                int viaIdx = topLayerId_2_viaId_[l];
+                std::string topLayerName = layers[l].GetName();
+                int layerWidth = layers[l].GetWidth() * dbuPerMicron;
                 std::string viaName = vias[viaIdx].GetName();
-                for(int j = 0; j < xMesh.size(); j ++) {
+                for(uint j = 0; j < xMesh.size(); j ++) {
                     int xpos = (signal == "POWER")? xMesh[j] + pwgnd_.vmeshPitch / 2 : xMesh[j] - pwgnd_.vmeshPitch / 2;
-                    PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+                    PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance);
                 }
             }
         }
@@ -423,9 +423,9 @@ void PWRoute::RouteHighLayerReinforcement(std::string signal) {
                 std::string topLayerName = layers[i].GetName();
                 int layerWidth = layers[i].GetWidth() * dbuPerMicron;
                 std::string viaName = vias[viaIdx].GetName();
-                for(int j = 0; j < xMesh.size(); j ++) {
+                for(uint j = 0; j < xMesh.size(); j ++) {
                     int xpos = (signal == "POWER")? xMesh[j] + pwgnd_.vmeshPitch / 2 : xMesh[j] - pwgnd_.vmeshPitch / 2;
-                    PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+                    PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance);
                 }
             }
         }
@@ -450,9 +450,9 @@ void PWRoute::RouteHighLayerReinforcement(std::string signal) {
                 std::string topLayerName = layers[i].GetName();
                 int layerWidth = layers[i].GetWidth() * dbuPerMicron;
                 std::string viaName = vias[viaIdx].GetName();
-                for(int j = 0; j < xMesh.size(); j ++) {
+                for(uint j = 0; j < xMesh.size(); j ++) {
                     int xpos = (signal == "POWER")? xMesh[j] + pwgnd_.vmeshPitch / 2: xMesh[j] - pwgnd_.vmeshPitch / 2;
-                    PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance, layerWidth);
+                    PlaceHighLayerVias(wires, xpos, tmpWire.coorY[0], topLayerName, viaIdx, width, viaDistance);
                 }
             }
 
@@ -506,7 +506,7 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
     std::string vMeshLayerName = pwgnd_.vMeshLayerName;
     std::string hMeshLayerName = pwgnd_.hMeshLayerName;
     int vLayerID = db_ptr_->GetTechPtr()->GetLayerId(vMeshLayerName);
-    int hLayerID = db_ptr_->GetTechPtr()->GetLayerId(hMeshLayerName);
+    //int hLayerID = db_ptr_->GetTechPtr()->GetLayerId(hMeshLayerName);
     
     int xoffset = (signal == "POWER")? pwgnd_.vmeshPitch / 2 : (-1) * pwgnd_.vmeshPitch / 2; 
     
@@ -517,7 +517,7 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
 
     int safeDistance = SafeBoundaryDistance();
 
-    for(int i = 0; i < xMesh.size(); i++) {
+    for(uint i = 0; i < xMesh.size(); i++) {
         tmpWire.layerName = vMeshLayerName;
         tmpWire.width = pwgnd_.vmeshWidth;
         
@@ -526,17 +526,15 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
         tmpWire.coorX[1] = xMesh[i] + xoffset;
         tmpWire.coorY[1] = dieArea.ur.y;
         tmpWire.ext[0] = -1;
-	tmpWire.ext[1] = -1;
+	    tmpWire.ext[1] = -1;
 	
-	tmpWire.numPathPoint = 2;
+	    tmpWire.numPathPoint = 2;
         wires.push_back(tmpWire);
     }
-
-    int left_offset, right_offset;
     
     int width = pwgnd_.hmeshWidth; 
-    for(int i = 0; i < yMesh.size(); i++) {
-        for(int j = 0; j < yMesh[i].size(); j++) {
+    for(uint i = 0; i < yMesh.size(); i++) {
+        for(uint j = 0; j < yMesh[i].size(); j++) {
             if(yMesh[i][j] + safeDistance >= dieArea.ur.y) {
                 yMesh[i][j] = dieArea.ur.y - safeDistance;
             }
@@ -664,7 +662,7 @@ void PWRoute::FindRowSNet(std::string componentName, std::string pinName, Rect2D
 
     int column = -1;
     auto& xMesh = pwgnd_.xMesh;
-    for(int i = 0; i < xMesh.size() - 1; i++) {
+    for(uint i = 0; i < xMesh.size() - 1; i++) {
         if(midPoint.x > xMesh[i] && midPoint.x < xMesh[i + 1]) {
             column = i;
             break;
@@ -675,7 +673,7 @@ void PWRoute::FindRowSNet(std::string componentName, std::string pinName, Rect2D
         std::cout << componentName << "/" << pinName << std::endl;
         std::cout << "Pin: " << rect << std::endl;
         std::cout << "xMesh : " << std::endl;
-        for(int i = 0; i < xMesh.size(); i++) 
+        for(uint i = 0; i < xMesh.size(); i++) 
             std::cout << xMesh[i] << " ";
         std::cout << std::endl;
         exit(1);
@@ -713,8 +711,7 @@ void PWRoute::FindRowSNet(std::string componentName, std::string pinName, Rect2D
 }
 
 void PWRoute::MarkUnusablePointComp(PWRouteComponent& component) {
-    
-    Rect2D<int> dieArea = db_ptr_->GetDesignPtr()->GetDieArea();
+    //Rect2D<int> dieArea = db_ptr_->GetDesignPtr()->GetDieArea();
     auto& layers = db_ptr_->GetLayersRef();
     auto& vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
@@ -886,7 +883,7 @@ void PWRoute::M3CloseViasPad() {
    auto rect = via.GetLayerRectsRef()[0].rects_[0];
    double M3M4_via_h = rect.URX() - rect.LLX();
    //double M3M4_via_v = rect.URY() - rect.LLY();
-   int M3_spacing = spacing_table->GetSpacingForWidth(M3M4_via_h) * dbuPerMicron;
+   //int M3_spacing = spacing_table->GetSpacingForWidth(M3M4_via_h) * dbuPerMicron;
    
    for(auto p : pwgnd_.usedConnectionPoints) {
       int x = p.x;
@@ -908,7 +905,7 @@ void PWRoute::M3CloseViasPad() {
 	 //identify it is POWER or GROUND net
 	 int column = -1;
          auto& xMesh = pwgnd_.xMesh;
-         for(int i = 0; i < xMesh.size() - 1; i++) {
+         for(uint i = 0; i < xMesh.size() - 1; i++) {
             if(x > xMesh[i] && x < xMesh[i + 1]) {
                column = i;
                break;
@@ -959,7 +956,7 @@ void PWRoute::ComputeMinLength() {
     auto& layers = db_ptr_->GetLayersRef();
     double manufacturingGrid = db_ptr_->GetTechPtr()->GetManufacturingGrid();
     double min_length;
-    for(int i = 0; i < layers.size(); i++) {
+    for(uint i = 0; i < layers.size(); i++) {
         if(layers[i].GetType() == phydb::LayerType::ROUTING)
             min_length = FitGrid(layers[i].GetArea() / layers[i].GetWidth(), manufacturingGrid);
         else
@@ -1027,7 +1024,7 @@ phydb::SNet* PWRoute::FindSNet(SignalUse signal) {
     auto snet_ref_v = db_ptr_->GetSNetRef();
     bool found = false;
     phydb::SNet* snet_ptr = nullptr;
-    for(int i = 0; i < snet_ref_v.size(); i++) {
+    for(uint i = 0; i < snet_ref_v.size(); i++) {
         snet_ptr = &snet_ref_v[i];
         if(snet_ptr->GetUse() == signal) {
             found = true;

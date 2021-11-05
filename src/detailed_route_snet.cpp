@@ -296,7 +296,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         
         for(int viaIdx = topLayerId_2_viaId_[2]; viaIdx < topLayerId_2_viaId_[4]; viaIdx++) { //vias whose top layer is M2
             auto via = vias[viaIdx];
-            int llx, lly, urx, ury;
+            int llx = -1, lly = -1, urx = -1, ury = -1;
             M1cover = false;
             for(auto layerRect : via.GetLayerRectsRef()) {
                 if(layerRect.layer_name_ == M1_name) {
@@ -305,6 +305,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     urx = layerRect.rects_[0].ur.x * dbuPerMicron;        
                     ury = layerRect.rects_[0].ur.y * dbuPerMicron;        
                 }
+            }
+            if(llx == -1 || lly == -1 || urx == -1 || ury == -1) {
+                std::cout << "ERROR: unable to find M1-M2 via." << std::endl;
+                exit(1);
             }
             
             for(auto rect : M1obsRect) {
@@ -527,7 +531,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
      
         auto& xMesh = pwgnd_.xMesh;
         bool move_right = false;
-        for(int i = 0; i < xMesh.size() - 1; i++) {
+        for(uint i = 0; i < xMesh.size() - 1; i++) {
             if(touchX > xMesh[i] && touchX < (xMesh[i] + xMesh[i + 1]) / 2) {
                 move_right = true; 
                 break;
@@ -693,10 +697,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     std::map<int, int> trackClosestPinPoint;
     std::map<int, int> trackClosestOBSPoint;
     
-    /*map<int, int> closestPinPoint;
-    map<int, int> closestOBSPoint;
-    */
-    int M2_minLength = layer_min_length_[2] * dbuPerMicron;
+    //int M2_minLength = layer_min_length_[2] * dbuPerMicron;
     int M2_pitch = layers[2].GetPitchX() * dbuPerMicron;
     int M2_width = layers[2].GetWidth() * dbuPerMicron;
     int M2_spacing = (M2_pitch - M2_width);
@@ -706,7 +707,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     auto viaRect = via.GetLayerRectsRef()[0].rects_[0];
     double h = (viaRect.ur.x - viaRect.ll.x) * dbuPerMicron;
     double v = (viaRect.ur.y - viaRect.ll.y) * dbuPerMicron;
-    double viaWidth = (h > v)? v : h;
+    //double viaWidth = (h > v)? v : h;
     double viaLength = (h > v)? h : v;
     
     int width = layers[4].GetWidth() * dbuPerMicron; //M3
@@ -716,7 +717,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 
     bool foundM2 = false;
     
-    int touchX, touchY;
+    int touchX = -1, touchY = -1;
    
 
     for(auto pinPoint : trackClosestPinPoint) { // Cell library gaurantee min area on M2
@@ -827,11 +828,6 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             tmpWire.viaName = vias[viaID].GetName();
             Wires.push_back(tmpWire);
         }
-
-        int M3_minLength = layer_min_length_[4] * dbuPerMicron;
-        
-        int M2_width = layers[2].GetWidth() * dbuPerMicron;
-        int M3_width = layers[4].GetWidth() * dbuPerMicron;
         
         tmpWire.coorX[0] = touchX + zRouteOffset; 
         tmpWire.coorY[0] = signalY; 

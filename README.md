@@ -20,8 +20,9 @@
     $ cd PWRoute/
     $ mkdir build
     $ cd build
-    $ cmake ..
+    $ cmake .. 
     $ make
     $ make install
+ If you want an executable of PWRoute, run "cmake .. -DBUILD_BIN=1" in the cmake step.
  "make install" creates a folder `pwroute` under folder `$ACT_HOME/include` with all .h of PWRoute/include, and a static library `libpwroute.a` under folder `$ACT_HOME/lib`.
 
