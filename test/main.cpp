@@ -9,6 +9,7 @@ int main(int argc, char** argv)
 {
     string defFileName, lefFileName, outFileName, cellFileName, clusterFileName;
     int verb = 0;
+    int reinforcement = 1;
     for(int i = 1; i < argc; i++)
     {
         string tmp(argv[i]);
@@ -27,7 +28,10 @@ int main(int argc, char** argv)
         else if(tmp == "-cluster") {
             clusterFileName = string(argv[i+1]);
         }
-        else if(tmp == "-verbose") {
+	else if(tmp == "-set_reinforcement") {
+	    reinforcement = atoi(argv[i + 1]);
+	}
+	else if(tmp == "-verbose") {
             verb = atoi(argv[i + 1]);
         }
     }
@@ -51,6 +55,7 @@ int main(int argc, char** argv)
     db.ReadCluster(clusterFileName);
 
     pwroute::PWRoute router(&db, verb);
+    router.SetReinforcement(reinforcement);
     router.RunPWRoute();
     router.ExportToPhyDB();
 

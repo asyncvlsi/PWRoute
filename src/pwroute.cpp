@@ -230,10 +230,18 @@ void PWRoute::SNetConfig() {
         std::cout << "vertical mesh layer: " << pwgnd_.vMeshLayerName << std::endl;
         std::cout << "horizontal mesh layer: " << pwgnd_.hMeshLayerName << std::endl;
     }
-    
+   
+    /*set hmeshPitch for vertical mesh M4*/
+    auto* m4_spacing_table = layers[cluster_horizontal_layer].GetSpacingTable();
+    double m4_spacing = m4_spacing_table->GetSpacingForWidth((double) pwgnd_.hmeshWidth / (double)dbuPerMicron);
+    pwgnd_.hmeshPitch = pwgnd_.hmeshWidth + m4_spacing * dbuPerMicron;
+    if(verbose_ > 1)
+    	std::cout << "hmesh width: " << pwgnd_.hmeshWidth << " m4_spacing: " << m4_spacing << " hmesh pitch: " << pwgnd_.hmeshPitch << std::endl; 
+
+ 
     /*set vmeshPitch for vertical mesh M5*/
-    auto* spacing_table = layers[cluster_vertical_layer].GetSpacingTable();
-    double m5_spacing = spacing_table->GetSpacingForWidth((double) pwgnd_.vmeshWidth / (double)dbuPerMicron);
+    auto* m5_spacing_table = layers[cluster_vertical_layer].GetSpacingTable();
+    double m5_spacing = m5_spacing_table->GetSpacingForWidth((double) pwgnd_.vmeshWidth / (double)dbuPerMicron);
     pwgnd_.vmeshPitch = pwgnd_.vmeshWidth + m5_spacing * dbuPerMicron;
     if(verbose_ > 1)
     	std::cout << "vmesh width: " << pwgnd_.vmeshWidth << " m5_spacing: " << m5_spacing << " vmesh pitch: " << pwgnd_.vmeshPitch << std::endl; 
@@ -532,7 +540,11 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
         wires.push_back(tmpWire);
     }
     
-    int width = pwgnd_.hmeshWidth; 
+    int hwidth = pwgnd_.hmeshWidth; 
+    int hext = std::max(pwgnd_.hmeshWidth / 2, pwgnd_.hmeshExt);
+    int hpitch = pwgnd_.hmeshPitch;
+    int vpitch = pwgnd_.vmeshPitch;
+    
     for(uint i = 0; i < yMesh.size(); i++) {
         for(uint j = 0; j < yMesh[i].size(); j++) {
             if(yMesh[i][j] + safeDistance >= dieArea.ur.y) {
@@ -542,48 +554,61 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
                 yMesh[i][j] = dieArea.ll.y + safeDistance;
             }     
             bool hasLeftConflict = false;
+	    int conflict_y = 0;
             if(signal == "GROUND" && i != 0) {
-                for(int posy : opyMesh[i - 1]) {
-                    if(abs(posy - yMesh[i][j]) <= width) {
-                        hasLeftConflict = true;
+                for(auto posy : opyMesh[i - 1]) {
+                    if(abs(posy - yMesh[i][j]) <= hpitch) {
+                        conflict_y = posy;
+			hasLeftConflict = true;
                         break;
                     }
                 }
             }
             
             if(hasLeftConflict) {
-                tmpWire.coorX[0] = xMesh[i] + 2 * width;
-                tmpWire.coorX[1] = xMesh[i + 1] + xoffset + width / 2;
+                tmpWire.coorX[0] = xMesh[i] - xoffset + hpitch;
+                tmpWire.coorX[1] = xMesh[i + 1] + xoffset;
                 
                 tmpWire.coorY[0] = yMesh[i][j];
                 tmpWire.coorY[1] = yMesh[i][j];
                 tmpWire.layerName = hMeshLayerName;
-                tmpWire.width = width;
+                tmpWire.width = hwidth;
                 tmpWire.numPathPoint = 2;
                 tmpWire.viaName = "";
+                tmpWire.ext[0] = 0;;
+		tmpWire.ext[1] = hext;
                 wires.push_back(tmpWire);
+        	tmpWire.ext[0] = -1;
+		tmpWire.ext[1] = -1;
                 
                 int moveup;
-                if(yMesh[i][j] + 3 * width < dieArea.ur.y)  
+                if(yMesh[i][j] + hwidth + hpitch < dieArea.ur.y)  
                     moveup = 1;
                 else 
                     moveup = -1;
 
-                tmpWire.coorX[0] = xMesh[i] + 2.5 * width;
-                tmpWire.coorX[1] = xMesh[i] + 2.5 * width;
-                tmpWire.coorY[0] = yMesh[i][j] + moveup * width / 2;
-                tmpWire.coorY[1] = yMesh[i][j] + moveup * 3 * width;
+                tmpWire.coorX[0] = xMesh[i] - xoffset + hpitch + hwidth / 2;
+                tmpWire.coorX[1] = xMesh[i] - xoffset + hpitch + hwidth / 2;
+                tmpWire.coorY[0] = yMesh[i][j] + moveup * hwidth / 2;
+                tmpWire.coorY[1] = conflict_y + moveup * (hpitch - hwidth / 2);
                 wires.push_back(tmpWire);
 
-                tmpWire.coorX[0] = xMesh[i] - 1.5 * width;
-                tmpWire.coorX[1] = xMesh[i] + 3 * width;
-                tmpWire.coorY[0] = yMesh[i][j] + moveup * 3.5 * width;
-                tmpWire.coorY[1] = yMesh[i][j] + moveup * 3.5 * width;
+                tmpWire.coorX[0] = xMesh[i] + xoffset ;
+                tmpWire.coorX[1] = xMesh[i] - xoffset + hpitch + hwidth;
+                tmpWire.coorY[0] = conflict_y + moveup * hpitch;
+                tmpWire.coorY[1] = conflict_y + moveup * hpitch;
+		tmpWire.ext[0] = hext;
+		tmpWire.ext[1] = 0;
+                wires.push_back(tmpWire);
+        	tmpWire.ext[0] = -1;
+		tmpWire.ext[1] = -1;
+                
+
                 wires.push_back(tmpWire);
 
 
-                tmpWire.coorX[0] = xMesh[i] - width;
-                tmpWire.coorY[0] = yMesh[i][j] + moveup * 3.5 * width;
+                tmpWire.coorX[0] = xMesh[i] + xoffset;
+                tmpWire.coorY[0] = conflict_y + moveup * hpitch;
                 tmpWire.numPathPoint = 1;
                 tmpWire.layerName = vMeshLayerName;
                 int viaID = topLayerId_2_viaId_[vLayerID]; //M4-M5
@@ -604,7 +629,7 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
                 tmpWire.coorY[0] = yMesh[i][j];
                 tmpWire.coorY[1] = yMesh[i][j];
                 tmpWire.layerName = hMeshLayerName;
-                tmpWire.width = width;
+                tmpWire.width = hwidth;
                 tmpWire.numPathPoint = 2;
                 tmpWire.viaName = "";
 		tmpWire.ext[0] = std::max(pwgnd_.hmeshWidth / 2, pwgnd_.hmeshExt);
@@ -612,17 +637,19 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
                 wires.push_back(tmpWire);
         	tmpWire.ext[0] = -1;
 		tmpWire.ext[1] = -1;
-		   
-                tmpWire.numPathPoint = 1;
-                tmpWire.layerName = vMeshLayerName;
-                int viaID = topLayerId_2_viaId_[vLayerID]; //M4-M5
-                tmpWire.viaName = vias[viaID].GetName();
+		  
+
+		if(!OverlapLowLayerVia(signal, i, j)) {	
+                   tmpWire.numPathPoint = 1;
+                   tmpWire.layerName = vMeshLayerName;
+                   int viaID = topLayerId_2_viaId_[vLayerID]; //M4-M5
+                   tmpWire.viaName = vias[viaID].GetName();
             
-                tmpWire.coorX[0] = xMesh[i] + xoffset;
-                tmpWire.coorY[0] = yMesh[i][j];
-                tmpWire.width = 0;
-                wires.push_back(tmpWire); 
-            
+                   tmpWire.coorX[0] = xMesh[i] + xoffset;
+                   tmpWire.coorY[0] = yMesh[i][j];
+                   tmpWire.width = 0;
+                   wires.push_back(tmpWire); 
+                }
             }
   
             tmpWire.coorX[0] = xMesh[i + 1] + xoffset;
@@ -635,25 +662,93 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
                 int M2_spacing = (layers[2].GetPitchY() - layers[2].GetWidth()) * dbuPerMicron;
                 if(yMesh[i][j] < midRange) {
                     tmpWire.coorY[0] = yMesh[i][j];
-                    tmpWire.coorY[1] = yMesh[i][j] + width / 2 + M2_spacing;
+                    tmpWire.coorY[1] = yMesh[i][j] + hwidth / 2 + M2_spacing;
                 }
                 else {
-                    tmpWire.coorY[0] = yMesh[i][j] - width / 2 - M2_spacing;
+                    tmpWire.coorY[0] = yMesh[i][j] - hwidth / 2 - M2_spacing;
                     tmpWire.coorY[1] = yMesh[i][j];
                 }
                 
                 tmpWire.coorX[1] = tmpWire.coorX[0];
 
                 tmpWire.layerName = vMeshLayerName; 
-                tmpWire.width = width;
+                tmpWire.width = hwidth;
                 tmpWire.numPathPoint = 2;
                 tmpWire.viaName = "";
                 wires.push_back(tmpWire);
                 
             }
+	    int y_dst = 0;
+	    if(NearLowLayerViaRange(signal, i, j, y_dst)) {
+
+		tmpWire.coorX[0] = xMesh[i] + xoffset;
+		tmpWire.coorX[1] = xMesh[i] + xoffset;
+		tmpWire.coorY[0] = yMesh[i][j] + hwidth / 2;
+		tmpWire.coorY[1] = y_dst - hwidth / 2;
+		tmpWire.layerName = hMeshLayerName;
+		
+		tmpWire.width = pwgnd_.hmeshExt * 2;
+                tmpWire.numPathPoint = 2;
+                tmpWire.viaName = "";
+                wires.push_back(tmpWire);
+                
+
+	    } 
         }
     }
 }
+
+bool PWRoute::OverlapLowLayerVia(std::string signal, int i, int j) {
+    if(i == 0)
+        return false;
+    auto& xMesh = pwgnd_.xMesh;
+    auto& yMesh = (signal == "POWER")? pwgnd_.poweryMesh : pwgnd_.gndyMesh;
+    
+    int hpitch = pwgnd_.hmeshPitch;
+    int hwidth = pwgnd_.hmeshWidth;
+    auto via_layer = db_ptr_->GetLayersRef()[cluster_horizontal_layer + 1];
+    double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
+    int cut_spacing = via_layer.GetSpacing() * dbuPerMicron; 
+    if(cut_spacing <= 0) {
+        std::cout << "ERROR: cut spacing < 0" << std::endl;
+	exit(1);
+    }
+     
+    int x = xMesh[i];
+    int y = yMesh[i][j];
+
+    for(uint left_j = 0; left_j < yMesh[i - 1].size(); left_j++) {
+	int left_y = yMesh[i - 1][left_j];
+	if(abs(y - left_y) < hwidth + cut_spacing) {
+	    return true;
+	}
+    } 
+    return false;
+
+}
+
+bool PWRoute::NearLowLayerViaRange(std::string signal, int i, int j, int& y_dst) {
+    if(i == 0)
+        return false;
+    auto& xMesh = pwgnd_.xMesh;
+    auto& yMesh = (signal == "POWER")? pwgnd_.poweryMesh : pwgnd_.gndyMesh;
+    
+    int hpitch = pwgnd_.hmeshPitch;
+    int hwidth = pwgnd_.hmeshWidth;
+    
+    int x = xMesh[i];
+    int y = yMesh[i][j];
+
+    for(uint left_j = 0; left_j < yMesh[i - 1].size(); left_j++) {
+	int left_y = yMesh[i - 1][left_j];
+	if(abs(y - left_y) < hpitch && abs(y - left_y) > hwidth ) {
+	    y_dst = left_y;
+	    return true;
+	}
+    } 
+    return false;
+
+}	
 
 void PWRoute::FindRowSNet(std::string componentName, std::string pinName, Rect2D<double> rect, int& powerY, int& gndY) {
     Point2D<int> midPoint;

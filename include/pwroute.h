@@ -43,6 +43,7 @@ public:
     int vmeshExt;
     
     int vmeshPitch;
+    int hmeshPitch;
     int signalNetWidth;
     //string meshLayerName;
     //string routeLayerName;
@@ -123,6 +124,8 @@ class PWRoute {
     int SafeBoundaryDistance();
     bool InHighLayerViaRange(std::string signal, int ypos);
     bool NearHighLayerViaRange(std::string signal, int ypos, int& midRange);
+    bool OverlapLowLayerVia(std::string signal, int i, int j);
+    bool NearLowLayerViaRange(std::string signal, int i, int j, int& y_dst);
     void MarkUnusablePointComp(PWRouteComponent& component);
     void FindRowSNet(std::string componentName, std::string pinName, Rect2D<double> rect, int& powerY, int& gndY);
     void DetailedRouteSNet();
