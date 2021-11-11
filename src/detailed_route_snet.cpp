@@ -130,8 +130,7 @@ void PWRoute::findFarthestTouchPoints(std::vector<Rect2D<double>>& rects, std::m
 }
 
 
-void PWRoute::findClosestTouchPoints(std::vector<Rect2D<double>>& rects, std::map<int, int>& closestPoint, 
-        Track track, int expand, int signalY) {
+void PWRoute::findClosestTouchPoints(std::vector<Rect2D<double>>& rects, std::map<int, int>& closestPoint, Track track, int expand, int signalY) {
     for(auto rect : rects) {
         //inclusive track       
         int left = (rect.ll.x - expand - track.GetStart()) / track.GetStep() + 1;
@@ -257,15 +256,44 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     std::string M1_name = layers[0].GetName();
     int M1_width = layers[0].GetWidth() * dbuPerMicron;
     int M1_pitch = layers[0].GetPitchX() * dbuPerMicron;
-    int M1_spacing = (M1_pitch - M1_width);
     
+    double M1_spacing, M2_spacing;
+    {
+       int viaIdx = topLayerId_2_viaId_[2];//M2
+       auto via = vias[viaIdx];
+       auto viaRect = via.GetLayerRectsRef()[0].rects_[0]; //M1
+       double h = (viaRect.ur.x - viaRect.ll.x);
+       double v = (viaRect.ur.y - viaRect.ll.y);
+       double viaWidth = (h > v)? v * dbuPerMicron : h * dbuPerMicron;
+       double viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
+    
+       auto M1_spacing_table = layers[0].GetSpacingTable();
+       double spacing1 = M1_spacing_table->GetSpacingFor(h, v);
+       double spacing2 = M1_spacing_table->GetSpacingFor(v, h);
+       M1_spacing = (double) std::max(spacing1, spacing2) * (double) dbuPerMicron;
+    }
+
+
     int V1_width = layers[1].GetWidth() * dbuPerMicron;
     int V1_spacing = layers[1].GetSpacing() * dbuPerMicron;
  
     int M2_minlength = layer_min_length_[2] * dbuPerMicron;
     int M2_pitch = layers[2].GetPitchX() * dbuPerMicron;
     int M2_width = layers[2].GetWidth() * dbuPerMicron;
-    int M2_spacing = (M2_pitch - M2_width);
+    {
+       int viaIdx = topLayerId_2_viaId_[detailed_route_layer];//M3
+       auto via = vias[viaIdx];
+       auto viaRect = via.GetLayerRectsRef()[0].rects_[0]; //M2
+       double h = (viaRect.ur.x - viaRect.ll.x);
+       double v = (viaRect.ur.y - viaRect.ll.y);
+       double viaWidth = (h > v)? v * dbuPerMicron : h * dbuPerMicron;
+       double viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
+    
+       auto M2_spacing_table = layers[2].GetSpacingTable();
+       double spacing1 = M2_spacing_table->GetSpacingFor(h, v);
+       double spacing2 = M2_spacing_table->GetSpacingFor(v, h);
+       M2_spacing = (double) std::max(spacing1, spacing2) * (double) dbuPerMicron;
+    }
         
     int M3_width = layers[4].GetWidth() * dbuPerMicron;
     int M3_pitch = layers[4].GetPitchX() * dbuPerMicron;
@@ -569,7 +597,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
             tmpWire.numPathPoint = 2;
             tmpWire.layerName = layers[4].GetName(); //M3
-            tmpWire.width = M3_width;
+            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
+	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
+	    else
+	        tmpWire.width = M3_width;
             Wires.push_back(tmpWire);//M3 wire
             
             tmpWire.coorX[0] = touchX - M2_width / 2;//
@@ -579,7 +610,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             
             tmpWire.numPathPoint = 2;
             tmpWire.layerName = layers[2].GetName(); //M2
-            tmpWire.width = M2_width;
+            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m2_expanded_range))
+	        tmpWire.width = std::max(pwgnd_.m2_expanded_width, M2_width);
+	    else
+	        tmpWire.width = M2_width;
             Wires.push_back(tmpWire);//M2 wire
 
         }
@@ -594,7 +628,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
             tmpWire.numPathPoint = 2;
             tmpWire.layerName = layers[4].GetName(); //M3
-            tmpWire.width = M3_width;
+            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
+	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
+	    else
+	        tmpWire.width = M3_width;
             Wires.push_back(tmpWire);//M3 wire
 
         }
@@ -619,7 +656,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         tmpWire.viaName = vias[viaID].GetName();
         Wires.push_back(tmpWire);//M3 to M2 via, touch
         
-        if(!M2thinFail) {
+        if(pwgnd_.need_m2_minarea) {
+	if(!M2thinFail) {
             tmpWire.coorX[0] = touchX - (int) FitGrid(M2_minlength / 2, (double) dbuPerMicron * manufacturing_grid);
             tmpWire.coorX[1] = touchX + (int) FitGrid(M2_minlength / 2, (double) dbuPerMicron * manufacturing_grid);
             tmpWire.width = M2_width;
@@ -631,12 +669,12 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             tmpWire.width = 3 * M2_width;
         }
 
-        tmpWire.coorY[0] = touchY;
-        tmpWire.coorY[1] = touchY;
-        tmpWire.numPathPoint = 2;
-        tmpWire.layerName = layers[2].GetName(); //M2
-        Wires.push_back(tmpWire);//M2 min area 
-        
+           tmpWire.coorY[0] = touchY;
+           tmpWire.coorY[1] = touchY;
+           tmpWire.numPathPoint = 2;
+           tmpWire.layerName = layers[2].GetName(); //M2
+           Wires.push_back(tmpWire);//M2 min area 
+	}
         
         int M3_minLength = layer_min_length_[4] * dbuPerMicron;
         if(fabs(touchY - signalY) < M3_minLength) {
@@ -653,8 +691,27 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
     }
     return foundM1M3;
-}   
+}  
 
+bool PWRoute::DetailedRouteCloseVia(int dist, phydb::Range<int> range) {
+
+    if(dist > range.begin && dist < range.end)
+	return true;
+    else
+	return false;    
+}
+
+bool PWRoute::OutOfComponent(PWRouteComponent& component, int touchX, int touchY, int space) {
+    bool out = false;
+
+    if(touchX < component.location_.x + space || 
+        touchX > component.location_.x + component.size_.x - space || 
+        touchY < component.location_.y + space ||
+        touchY > component.location_.y + component.size_.y - space)
+        out = true;
+    return out; 
+
+}
 
 bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
         std::vector<Wire>& Wires, Point2D<int>& powerPoint) {
@@ -695,25 +752,36 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     Track track = tracks[layerid_2_trackid_[4]]; //M3
 
     std::map<int, int> trackClosestPinPoint;
-    std::map<int, int> trackClosestOBSPoint;
+    std::map<int, int> trackFarthestPinPoint;
     
     //int M2_minLength = layer_min_length_[2] * dbuPerMicron;
-    int M2_pitch = layers[2].GetPitchX() * dbuPerMicron;
-    int M2_width = layers[2].GetWidth() * dbuPerMicron;
-    int M2_spacing = (M2_pitch - M2_width);
-     
-    int viaIdx = topLayerId_2_viaId_[2];
+    int M2_width = layers[2].GetWidth() * dbuPerMicron; 
+    int M2_pitch = layers[2].GetPitchY() * dbuPerMicron; 
+
+
+    int viaIdx = topLayerId_2_viaId_[detailed_route_layer];//M3
     auto via = vias[viaIdx];
-    auto viaRect = via.GetLayerRectsRef()[0].rects_[0];
-    double h = (viaRect.ur.x - viaRect.ll.x) * dbuPerMicron;
-    double v = (viaRect.ur.y - viaRect.ll.y) * dbuPerMicron;
-    //double viaWidth = (h > v)? v : h;
-    double viaLength = (h > v)? h : v;
+    auto viaRect = via.GetLayerRectsRef()[0].rects_[0]; //M2
+    double h = (viaRect.ur.x - viaRect.ll.x);
+    double v = (viaRect.ur.y - viaRect.ll.y);
+    double viaWidth = (h > v)? v * dbuPerMicron : h * dbuPerMicron;
+    double viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
     
+    auto M2_spacing_table = layers[2].GetSpacingTable();
+    double spacing1 = M2_spacing_table->GetSpacingFor(h, v);
+    double spacing2 = M2_spacing_table->GetSpacingFor(v, h);
+    double M2_spacing = (double) std::max(spacing1, spacing2) * (double) dbuPerMicron;
     int width = layers[4].GetWidth() * dbuPerMicron; //M3
     int pitch = layers[4].GetPitchX() * dbuPerMicron;
+  
+    h *= dbuPerMicron;
+    v *= dbuPerMicron;
+    int h_extend = std::max((int)h, M2_width) / 2;
+    int v_extend = std::max((int)v, M2_width) / 2;  
     findClosestTouchPoints(pinRect, trackClosestPinPoint, track, 0, signalY); // no expand
-    findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, pitch - width / 2, signalY); // this is width/2 + spacing
+    findFarthestTouchPoints(pinRect, trackFarthestPinPoint, track, 0, signalY); // no expand
+    
+    //findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, h / 2 + M2_spacing, signalY); // 
 
     bool foundM2 = false;
     
@@ -724,30 +792,54 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
         int trackIdx = pinPoint.first;
         touchX = track.GetStart() + trackIdx * track.GetStep();
         touchY = pinPoint.second;
- 
-        Point2D<double> touchPoint(touchX, touchY);
-        bool M2cover = false;
-        for(auto rect : obsRect) {
-            auto tmpRect = rect;
-            tmpRect.ll.x -= (viaLength / 2 + M2_spacing); // just gaurantee via 
-            tmpRect.ur.x += (viaLength / 2 + M2_spacing); 
-            tmpRect.ll.y -= M2_spacing;
-            tmpRect.ur.y += M2_spacing;
-            
-            if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
-                if(component.name_ == "p_ae__131_acpx0" && signal == "GROUND") {
-                    std::cout << "M2 " << component.name_ << ": " << touchX << " " << touchY << std::endl;
-                    std::cout << rect << std::endl;
+
+        int farthestY = trackFarthestPinPoint[trackIdx];
+        if(verbose_ > 2 && component.name_ == "tst_aelem_50_6_apush__muxi_adata__and_50_6_56_6") {
+            std::cout << "close -> far : " << touchY << " " << farthestY << std::endl;
+            std::cout << h_extend << " " << v_extend << " " << M2_spacing << std::endl;
+        } 
+	
+	    while(1) {	
+	        
+            if(verbose_ > 2 && component.name_ == "tst_aelem_51_6_ae25_a__84__") 
+                std::cout << touchY << std::endl;            
+            Point2D<double> touchPoint(touchX, touchY);
+            bool M2cover = false, OutOfComp = false;
+
+            for(auto rect : obsRect) {
+                auto tmpRect = rect;
+                tmpRect.ll.x -= (h_extend + M2_spacing); // just gaurantee via 
+                tmpRect.ur.x += (h_extend + M2_spacing); 
+                tmpRect.ll.y -= (v_extend + M2_spacing);
+                tmpRect.ur.y += (v_extend + M2_spacing);
+                if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
+                    if(verbose_ > 2 && component.name_ == "tst_aelem_51_6_ae25_a__84__") 
+                        std::cout << rect << std::endl;
+                    M2cover = true;
+                    break;
                 }
-                
-                M2cover = true;
-                break;
+                if(OutOfComponent(component, touchX, touchY, h/2 + M2_spacing)) {
+		            OutOfComp = true;
+		            break;
+	            }
+            } // m2 side min area doesn't conflict with m2 obs       
+            if(!M2cover && !OutOfComp && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {
+               foundM2 = true;
+               break;
             }
-        } // m2 side min area doesn't conflict with m2 obs       
-        if(!M2cover && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {
-            foundM2 = true;
-            break;
+            if(touchY > signalY) {
+	            touchY += M2_pitch / 2;
+                if(touchY > farthestY)
+                    break;
+            }
+            else {
+                touchY -= M2_pitch / 2;
+	            if(touchY < farthestY)
+                    break;
+            }
         }
+	    if(foundM2)
+	        break;
     }
     
     int M3_width = layers[4].GetWidth() * dbuPerMicron;
@@ -760,11 +852,11 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             powerPoint.x = touchX;
             powerPoint.y = touchY;
         }
-        
-        if(touchY < signalY)
+        /*if(touchY < signalY)
             touchY -= M2_width / 2;
         else
             touchY += M2_width / 2;
+        */
 
         int zRouteOffset = 0;
         int viaID;
@@ -782,9 +874,12 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                 tmpWire.coorY[0] = (touchY > signalY)? signalY + M3_minlength : signalY - M3_minlength;
             }
             tmpWire.numPathPoint = 2;
-            tmpWire.layerName = layers[4].GetName(); //M3
-            tmpWire.width = M3_width;
-            Wires.push_back(tmpWire);//M3 wire
+            tmpWire.layerName = layers[detailed_route_layer].GetName(); //M3
+            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
+	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
+	    else
+	        tmpWire.width = M3_width;
+	    Wires.push_back(tmpWire);//M3 wire
             
             tmpWire.coorX[0] = touchX - M2_width / 2;//
             tmpWire.coorY[0] = touchY;
@@ -793,7 +888,10 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             
             tmpWire.numPathPoint = 2;
             tmpWire.layerName = layers[2].GetName(); //M2
-            tmpWire.width = M2_width;
+            if(DetailedRouteCloseVia(abs(tmpWire.coorX[0] - tmpWire.coorX[1]), pwgnd_.m2_expanded_range))
+	        tmpWire.width = std::max(pwgnd_.m2_expanded_width, M2_width);
+	    else
+	        tmpWire.width = M2_width;
             Wires.push_back(tmpWire);//M2 wire
             
             tmpWire.coorX[0] = touchX + zRouteOffset;
@@ -816,7 +914,10 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             }
             tmpWire.numPathPoint = 2;
             tmpWire.layerName = layers[4].GetName(); //M3
-            tmpWire.width = M3_width;
+            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
+	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
+	    else
+	        tmpWire.width = M3_width;
             Wires.push_back(tmpWire);//M3 wire
 
             tmpWire.coorX[0] = touchX;

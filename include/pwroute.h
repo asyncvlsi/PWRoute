@@ -37,16 +37,22 @@ public:
 
 class PWGND {
 public:
-    int hmeshWidth;
-    int hmeshExt;
-    int vmeshWidth;
-    int vmeshExt;
+    int hmeshWidth = -1;
+    int hmeshExt = -1;
+    int vmeshWidth = -1;
+    int vmeshExt = -1;
     
-    int vmeshPitch;
-    int hmeshPitch;
-    int signalNetWidth;
-    //string meshLayerName;
-    //string routeLayerName;
+    int vmeshPitch = -1;
+    int hmeshPitch = -1;
+    int signalNetWidth = -1;
+    
+    int m2_expanded_width = -1;//expand the width to the min width of vias, to avoid DRC
+    int m3_expanded_width = -1;
+    phydb::Range<int> m2_expanded_range; // distance threshold to expand the wire
+    phydb::Range<int> m3_expanded_range;
+    
+    bool need_m2_minarea = true;
+    
     std::string hMeshLayerName;
     std::string vMeshLayerName;
     int lastHLayerID;
@@ -149,6 +155,8 @@ class PWRoute {
     double FitGrid(double num, double manufacturingGrid);
     phydb::SNet* FindSNet(SignalUse);
 
+    bool DetailedRouteCloseVia(int dist, phydb::Range<int> range);
+    bool OutOfComponent(PWRouteComponent& , int, int, int );
   public: 
     PWRoute() {}
     PWRoute(phydb::PhyDB* p) : db_ptr_(p){}
