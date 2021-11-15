@@ -114,12 +114,16 @@ void PWRoute::SNetConfig() {
     double spacing = m2_spacing_table->GetSpacingFor( max_length / (double)dbuPerMicron, std::min(width1, width2) / (double) dbuPerMicron);
     pwgnd_.m2_expanded_range.begin = (length1 + length2) / 2;
     pwgnd_.m2_expanded_range.end = spacing * dbuPerMicron + (length1 + length2) / 2;
+
+    double m2_width = layers[detailed_route_layer].GetWidth();
+    pwgnd_.same_signal_obs_reserve_ = (v > m2_width);
     
     if(verbose_ > 1) {
-	std::cout << "need m2 minarea " << pwgnd_.need_m2_minarea << std::endl;
+	    std::cout << "need m2 minarea " << pwgnd_.need_m2_minarea << std::endl;
         std::cout << "m2 expand: " << pwgnd_.m2_expanded_width << " ";
-	std::cout << pwgnd_.m2_expanded_range.begin << " ";
-	std::cout << pwgnd_.m2_expanded_range.end << " " << std::endl;
+        std::cout << pwgnd_.m2_expanded_range.begin << " ";
+        std::cout << pwgnd_.m2_expanded_range.end << " " << std::endl;
+        std::cout << "m2 same signal obs reserve: " << pwgnd_.same_signal_obs_reserve_ << std::endl;
     }
 
     /*set m3_expanded_width*/
@@ -156,6 +160,8 @@ void PWRoute::SNetConfig() {
     if(verbose_ > none) {
         std::cout << "High H layer: " << pwgnd_.lastHLayerName << std::endl;
     }
+
+
 }
 
 

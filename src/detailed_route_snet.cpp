@@ -1,4 +1,5 @@
 #include "pwroute.h" 
+#include "pin_edge.h"
 #include <math.h>
 using namespace phydb;
 namespace pwroute {
@@ -241,8 +242,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     
     findClosestTouchPoints(pinRect, trackClosestPinPoint, track, width / 2, signalY);
     if(verbose_ >= debug && component.name_ == "v_50_6" && signal == "POWER") {
-	for(auto p : trackClosestPinPoint) 
-	    std::cout << p.first << " " << p.second << std::endl;
+        for(auto p : trackClosestPinPoint) 
+            std::cout << p.first << " " << p.second << std::endl;
     }
     
     //findTouchPointsNoTrack(pinRect, touchPinPoint, track, width / 2, signalY);
@@ -308,7 +309,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     for(auto pinPoint : trackClosestPinPoint) {
         int trackIdx = pinPoint.first;
         touchX = track.GetStart() + trackIdx * track.GetStep();
-        //touchX = pinPoint.first;
         touchY = pinPoint.second;
         
         //move touchY futher from signalY by width/2
@@ -749,6 +749,18 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     if(pinRect.size() == 0)
         return false;
 
+    PinEdge pin_edges;
+    if(pwgnd_.same_signal_obs_reserve_) {
+        //std::cout << "component: " << component.name_ << std::endl;
+        ExtractPinEdge(component.name_, pinRect, pin_edges);
+        /*if(component.name_ == "tst_aelem_50_6_as__10_act_acx0") {
+            for(auto e : pin_edges.l_edges) 
+                std::cout << "left: " << e << std::endl;
+            for(auto e : pin_edges.r_edges) 
+                std::cout << "right: " << e << std::endl;
+        }*/
+    }
+
     Track track = tracks[layerid_2_trackid_[4]]; //M3
 
     std::map<int, int> trackClosestPinPoint;
@@ -800,7 +812,6 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
         } 
 	
 	    while(1) {	
-	        
             if(verbose_ > 2 && component.name_ == "tst_aelem_51_6_ae25_a__84__") 
                 std::cout << touchY << std::endl;            
             Point2D<double> touchPoint(touchX, touchY);
@@ -823,7 +834,8 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 		            break;
 	            }
             } // m2 side min area doesn't conflict with m2 obs       
-            if(!M2cover && !OutOfComp && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {
+            if(!M2cover && !OutOfComp && AdjMeshPointCheck(touchX, signalY, track.GetStep()) && 
+                SameSignalObsBlock(touchX, touchY, h_extend, v_extend, M2_spacing, pin_edges)) {
                foundM2 = true;
                break;
             }
@@ -876,10 +888,10 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             tmpWire.numPathPoint = 2;
             tmpWire.layerName = layers[detailed_route_layer].GetName(); //M3
             if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
-	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
-	    else
-	        tmpWire.width = M3_width;
-	    Wires.push_back(tmpWire);//M3 wire
+                tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
+            else
+                tmpWire.width = M3_width;
+            Wires.push_back(tmpWire);//M3 wire
             
             tmpWire.coorX[0] = touchX - M2_width / 2;//
             tmpWire.coorY[0] = touchY;

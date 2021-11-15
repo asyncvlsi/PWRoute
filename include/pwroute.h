@@ -4,6 +4,7 @@
 #include <set>
 #include <phydb/phydb.h> 
 #include "pwroute_component.h"
+#include "pin_edge.h"
 using namespace phydb;
 namespace pwroute {
 
@@ -52,6 +53,7 @@ public:
     phydb::Range<int> m3_expanded_range;
     
     bool need_m2_minarea = true;
+    bool same_signal_obs_reserve_ = false; // if M2 via width is smaller or equal to M2 width, no need to reserve
     
     std::string hMeshLayerName;
     std::string vMeshLayerName;
@@ -157,6 +159,8 @@ class PWRoute {
 
     bool DetailedRouteCloseVia(int dist, phydb::Range<int> range);
     bool OutOfComponent(PWRouteComponent& , int, int, int );
+    void ExtractPinEdge(std::string , std::vector<Rect2D<double>>& , PinEdge& );
+    bool SameSignalObsBlock(int touchX, int touchY, int h_extend, int v_extend, int M2_spacing, PinEdge& pin_edges);
   public: 
     PWRoute() {}
     PWRoute(phydb::PhyDB* p) : db_ptr_(p){}
