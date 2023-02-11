@@ -6,6 +6,11 @@
 #include "pwroute_component.h"
 #include "pin_edge.h"
 using namespace phydb;
+
+#if !defined(uint)
+typedef unsigned int uint;
+#endif
+
 namespace pwroute {
 
 enum VERBOSE {
