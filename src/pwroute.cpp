@@ -561,6 +561,10 @@ void PWRoute::RouteLowLayerMesh(std::string signal) {
                    wires.push_back(tmpWire); 
                 }
             }
+            tmpWire.numPathPoint = 1;// initialize right M4-M5 via
+            tmpWire.layerName = vMeshLayerName;
+            int viaID = topLayerId_2_viaId_[vLayerID];
+            tmpWire.viaName = vias[viaID].GetName();
   
             tmpWire.coorX[0] = xMesh[i + 1] + xoffset;
             tmpWire.coorY[0] = yMesh[i][j];
