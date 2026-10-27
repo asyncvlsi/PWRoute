@@ -225,7 +225,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 M1obsRect.push_back(rect);
             }
         }
-        else if(layerIdx == 0) { //V1
+        else if(layerIdx == 1) { //V1
             for(auto rect : layerRect.rects_) {
                 V1obsRect.push_back(rect);
             }
@@ -303,6 +303,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     bool foundM1M3 = false;
     double touchX, touchY;
     std::string M1M2ViaName;
+    int M1M2ViaLength;
    
     bool M2thinFail = false;
     bool M2wideFail = false;
@@ -353,6 +354,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
             if(!M1cover) {
                 M1M2ViaName = via.GetName();
+		M1M2ViaLength=ury-lly;
                 break;
             }
         } // find m1-m2 via that doesn't conflict with m1 obs
@@ -473,6 +475,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
             if(!M1cover) {
                 M1M2ViaName = via.GetName();
+		M1M2ViaLength=ury-lly;
                 break;
             }
         } // find m1-m2 via that doesn't conflict with m1 obs
@@ -663,7 +666,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             tmpWire.width = M2_width;
         }
         else {
-            int length = std::max(M2_width / 2, (int) FitGrid(M2_minlength / 6, (double) dbuPerMicron * manufacturing_grid)); //sometimes M2_minlength / 3 < M2_width, too thin 
+            int length = std::max(std::max(M2_width / 2, M1M2ViaLength / 2), (int) FitGrid(M2_minlength / 6, (double) dbuPerMicron * manufacturing_grid)); //sometimes M2_minlength / 3 < M2_width, too thin 
             tmpWire.coorX[0] = touchX - length;
             tmpWire.coorX[1] = touchX + length;
             tmpWire.width = 3 * M2_width;
