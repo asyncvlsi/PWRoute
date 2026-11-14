@@ -417,9 +417,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                ra.ur.y - dy > rb.ll.y;
     };
 
-    auto &M2M3Via = vias[topLayerId_2_viaId_[detailed_route_layer]];
-    const auto &M2M3Metal = M2M3Via.GetLayerRectsRef()[0];
-
     int M2_minlength = layer_min_length_[2] * dbuPerMicron;
     int M2_pitch = layers[2].GetPitchX() * dbuPerMicron;
     int M2_width = layers[2].GetWidth() * dbuPerMicron;
@@ -489,6 +486,55 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
    
     bool M2thinFail = false;
     bool M2wideFail = false;
+    //helper function for finding M2-M3 via
+    auto findM2M3Via = [&](double x, double y) -> bool {
+        M2M3ViaIdx = -1;
+        int zOffset = getZRouteOffset(x, y);
+        Point2D<double> anchor(x + zOffset, y);
+        const auto &lowerMetal = vias[M1M2ViaIdx].GetLayerRectsRef()[2];
+        for (int viaIdx : layerPair_2_viaIds_.at(std::make_pair(2, 4))) {
+            const auto &shapes = vias[viaIdx].GetLayerRectsRef();
+            if (shapes[0].rects_.empty() ||
+                shapes[1].rects_.empty() ||
+                shapes[2].rects_.empty()) {
+                continue;
+            }
+            Point2D<double> origin = anchor;
+            if (center_vias_) {
+                Point2D<double> center;
+                if (!GetViaCutCenterOffset(shapes[1], center)) {
+                    continue;
+                }
+                double dx = center.x * dbuPerMicron;
+                double dy = center.y * dbuPerMicron;
+                double grid = manufacturing_grid * dbuPerMicron;
+
+                bool onDBU = fabs(dx - round(dx)) < 1e-6 && fabs(dy - round(dy)) < 1e-6;
+                bool onGrid = grid <= 0 || (fabs(dx / grid - round(dx / grid)) < 1e-6
+                                        && fabs(dy / grid - round(dy / grid)) < 1e-6);
+                if (!onDBU || !onGrid) {
+                    continue;
+                }
+                origin.x -= round(dx);
+                origin.y -= round(dy);
+            }
+            const auto &upperMetal = shapes[0];
+            if (viaM2Blocked(upperMetal, origin)) {
+                continue;
+            }
+            Point2D<double> originDelta( origin.x - M1M2ViaOrigin.x, origin.y - M1M2ViaOrigin.y);
+            bool connectedM2 = zOffset == 0 && M2LandingsOverlap(lowerMetal, upperMetal, originDelta);
+            bool candidateNeedsPad = !M2MetalHasMinArea(upperMetal) && !(M1M2HasM2MinArea && connectedM2);
+            if (candidateNeedsPad && M2thinFail && M2wideFail) {
+                continue;
+            }
+            M2M3ViaIdx = viaIdx;
+            M2M3ViaOrigin = origin;
+            needM2Pad = candidateNeedsPad;
+            return true;
+        }
+        return false;
+    };
     if (verbose_ >= debug) {
         for (auto rect : pinRect) {
             std::cout << "M1 supply pin: " << component.name_
@@ -643,15 +689,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 touchPoint.x = touchX;
                 touchPoint.y += centerOffset.y;
                 M1M2HasM2MinArea = M2MetalHasMinArea(via.GetLayerRectsRef()[2]);
-                bool usesZRoute =
-                    signal == "GROUND" && touchPoint.x == powerPoint.x &&
-                    ((touchPoint.y < signalY && powerPoint.y > touchPoint.y) ||
-                     (touchPoint.y > signalY && powerPoint.y < touchPoint.y));
-
-                bool connectedM2 = !usesZRoute &&
-                    M2LandingsOverlap(via.GetLayerRectsRef()[2], M2M3Metal, centerOffset);
-
-                needM2Pad = pwgnd_.need_m2_minarea && !(M1M2HasM2MinArea && connectedM2);
                 M1M2ViaCutCount = via.GetLayerRectsRef()[1].rects_.size();
                 M1M2ViaLength=ury-lly;
                 touchY = touchPoint.y;
@@ -703,7 +740,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     touchPoint.y + M2_width * 3 / 2 + M2_spacing / 2 > component.location_.y + component.size_.y) 
             M2wideFail = true;
 
-        M2cover = needM2Pad && M2wideFail && M2thinFail;
+        M2cover = M2wideFail && M2thinFail;
+
         
         if(verbose_ > 0 && component.name_ == "cx1") {
             std::cout << signal << ":" << std::endl;
@@ -729,13 +767,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             std::cout << V1cover << M2cover << M1cover << std::endl;
         
         
-        if(V1cover == false && M2cover == false && M1cover == false && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {       
-            Point2D<double> upperOrigin(touchX + getZRouteOffset(touchX, touchY), touchY);
-            if (viaM2Blocked(M2M3Metal, upperOrigin)) {
+        if (!V1cover && !M1cover && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {
+            if (!findM2M3Via(touchX, touchY)) {
                 continue;
             }
-            M2M3ViaIdx = topLayerId_2_viaId_[detailed_route_layer];
-            M2M3ViaOrigin = upperOrigin;
             foundM1M3 = true;
             break;
         }
@@ -877,15 +912,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 touchPoint.x = touchX;
                 touchPoint.y += centerOffset.y;
                 M1M2HasM2MinArea = M2MetalHasMinArea(via.GetLayerRectsRef()[2]);
-                bool usesZRoute =
-                    signal == "GROUND" && touchPoint.x == powerPoint.x &&
-                    ((touchPoint.y < signalY && powerPoint.y > touchPoint.y) ||
-                     (touchPoint.y > signalY && powerPoint.y < touchPoint.y));
-
-                bool connectedM2 = !usesZRoute &&
-                    M2LandingsOverlap(via.GetLayerRectsRef()[2], M2M3Metal, centerOffset);
-
-                needM2Pad = pwgnd_.need_m2_minarea && !(M1M2HasM2MinArea && connectedM2);
                 M1M2ViaCutCount = via.GetLayerRectsRef()[1].rects_.size();
                 M1M2ViaLength=ury-lly;
                 touchY = touchPoint.y;
@@ -938,7 +964,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     touchPoint.y + M2_width * 3 / 2 + M2_spacing / 2 > component.location_.y + component.size_.y) { 
             M2wideFail = true;            
         }
-        M2cover = needM2Pad && M2wideFail && M2thinFail;
+        M2cover = M2wideFail && M2thinFail;
         if(component.name_ == "cx1") {
             std::cout << signal << ": " << std::endl;
             std::cout << "far M2cover : " << M2cover << " M2wideFail: " << M2wideFail << " M2thinFail: " << M2thinFail << std::endl;
@@ -965,13 +991,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             std::cout << V1cover << M2cover << M1cover << std::endl;
         
  
-       if(V1cover == false && M2cover == false && M1cover == false && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {       
-            Point2D<double> upperOrigin( touchX + getZRouteOffset(touchX, touchY), touchY);
-            if (viaM2Blocked(M2M3Metal, upperOrigin)) {
+        if (!V1cover && !M1cover && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {
+            if (!findM2M3Via(touchX, touchY)) {
                 continue;
             }
-            M2M3ViaIdx = topLayerId_2_viaId_[detailed_route_layer];
-            M2M3ViaOrigin = upperOrigin;
             foundM1M3 = true;
             break;
         }
