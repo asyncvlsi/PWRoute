@@ -479,6 +479,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     std::string M1M2ViaName;
     int M1M2ViaIdx = -1;
     Point2D<double> M1M2ViaOrigin;
+    int M2M3ViaIdx = -1;
+    Point2D<double> M2M3ViaOrigin;
     std::size_t M1M2ViaCutCount = 0;
     bool M1M2HasM2MinArea = false;
     bool needM2Pad = pwgnd_.need_m2_minarea;
@@ -732,6 +734,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             if (viaM2Blocked(M2M3Metal, upperOrigin)) {
                 continue;
             }
+            M2M3ViaIdx = topLayerId_2_viaId_[detailed_route_layer];
+            M2M3ViaOrigin = upperOrigin;
             foundM1M3 = true;
             break;
         }
@@ -966,6 +970,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             if (viaM2Blocked(M2M3Metal, upperOrigin)) {
                 continue;
             }
+            M2M3ViaIdx = topLayerId_2_viaId_[detailed_route_layer];
+            M2M3ViaOrigin = upperOrigin;
             foundM1M3 = true;
             break;
         }
@@ -1077,9 +1083,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         Wires.push_back(tmpWire);//M3 to M4 via, mesh
 
 
-        viaID = topLayerId_2_viaId_[detailed_route_layer]; //M3
-        tmpWire.coorX[0] = touchX + zRouteOffset;
-        tmpWire.coorY[0] = touchY;
+        viaID = M2M3ViaIdx;//M3
+        tmpWire.coorX[0] = M2M3ViaOrigin.x;
+        tmpWire.coorY[0] = M2M3ViaOrigin.y;
         tmpWire.numPathPoint = 1;
         tmpWire.layerName = layers[4].GetName();
         tmpWire.width = 0;

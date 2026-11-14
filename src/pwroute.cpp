@@ -128,6 +128,27 @@ void PWRoute::SetDefaultVia() {
         std::cout << std::endl;
     }
     //end of explicity M1-M2
+    //for M2-M3 vias
+    auto &m2m3Vias = layerPair_2_viaIds_.at(std::make_pair(2, 4));
+
+    std::stable_sort(
+        m2m3Vias.begin(),
+        m2m3Vias.end(),
+        [&vias](int firstId, int secondId) {
+            auto &first = vias[firstId].GetLayerRectsRef();
+            auto &second = vias[secondId].GetLayerRectsRef();
+            return first[1].rects_.size() > second[1].rects_.size();
+        });
+
+    if (verbose_ >= debug) {
+        std::cout << "M2-M3 search order:";
+        for (int viaId : m2m3Vias) {
+            std::cout << " " << vias[viaId].GetName();
+        }
+        std::cout << std::endl;
+    }
+    //end of explicity M2-M3
+
 
 
     for(uint layerid = 0; layerid < layer_v.size(); layerid++) {
