@@ -588,10 +588,16 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     bool M2thinFail = false;
     bool M2wideFail = false;
     //helper function for finding M2-M3 via
+    const int meshViaIdx = topLayerId_2_viaId_[cluster_horizontal_layer];
     auto findM2M3Via = [&](double x, double y) -> bool {
         M2M3ViaIdx = -1;
         int zOffset = getZRouteOffset(x, y);
         Point2D<double> anchor(x + zOffset, y);
+        Point2D<double> meshOrigin(anchor.x, signalY);
+        const auto &meshMetal = vias[meshViaIdx].GetLayerRectsRef()[0];
+        if (viaM3Blocked(meshMetal, meshOrigin)) {
+            return false;
+        }
         const auto &lowerMetal = vias[M1M2ViaIdx].GetLayerRectsRef()[2];
         Wire m3Wire = makeM3Wire(x, y);
         double halfWidth = m3Wire.width / 2.0;
@@ -1227,7 +1233,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             Wires.push_back(tmpWire);
         }
 
-        int viaID = topLayerId_2_viaId_[cluster_horizontal_layer]; //M4
+        int viaID = meshViaIdx; //M4
         tmpWire.coorX[0] = touchX + zRouteOffset;
         tmpWire.coorY[0] = signalY;
         tmpWire.numPathPoint = 1;
