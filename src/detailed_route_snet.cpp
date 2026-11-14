@@ -556,6 +556,19 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         }
         return wire;
     };
+    
+    auto makeM3MinAreaWire = [&](double x, double y) -> Wire {
+        Wire wire;
+        wire.coorX[0] = x;
+        wire.coorX[1] = x;
+        wire.coorY[0] = signalY;
+        wire.coorY[1] = (signalY < y) ? signalY + M3_minlength : signalY - M3_minlength;
+        wire.width = M3_width;
+        wire.layerName = layers[4].GetName();
+        wire.numPathPoint = 2;
+        return wire;
+    };
+
 
 
     
@@ -598,6 +611,34 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 m3WireRect.ll.y < obs.ur.y + wireSpacing &&
                 m3WireRect.ur.y > obs.ll.y - wireSpacing) {
                 return false;
+            }
+        }
+        //wire obstacle check
+        if (fabs(y - signalY) < M3_minlength) {
+            Wire extraWire = makeM3MinAreaWire(x, y);
+            double extraHalfWidth = extraWire.width / 2.0;
+
+            Rect2D<double> extraRect(
+                extraWire.coorX[0] - extraHalfWidth,
+                std::min(extraWire.coorY[0], extraWire.coorY[1]) - extraHalfWidth,
+                extraWire.coorX[0] + extraHalfWidth,
+                std::max(extraWire.coorY[0], extraWire.coorY[1]) + extraHalfWidth);
+
+            double extraH = extraWire.width / (double) dbuPerMicron;
+            double extraV = (extraRect.ur.y - extraRect.ll.y) / dbuPerMicron;
+
+            double extraSpacing = std::max(
+                m3SpacingTable->GetSpacingFor(extraH, extraV),
+                m3SpacingTable->GetSpacingFor(extraV, extraH)
+            ) * dbuPerMicron;
+
+            for (const auto &obs : M3obsRect) {
+                if (extraRect.ll.x < obs.ur.x + extraSpacing &&
+                    extraRect.ur.x > obs.ll.x - extraSpacing &&
+                    extraRect.ll.y < obs.ur.y + extraSpacing &&
+                    extraRect.ur.y > obs.ll.y - extraSpacing) {
+                    return false;
+                }
             }
         }
         for (int viaIdx : layerPair_2_viaIds_.at(std::make_pair(2, 4))) {
@@ -1237,20 +1278,11 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
            tmpWire.layerName = layers[2].GetName(); //M2
            Wires.push_back(tmpWire);//M2 min area 
 	}
-        
-        int M3_minLength = layer_min_length_[4] * dbuPerMicron;
-        if(fabs(touchY - signalY) < M3_minLength) {
-            tmpWire.coorX[0] = touchX; 
-            tmpWire.coorX[1] = touchX; 
-            tmpWire.coorY[0] = signalY;
-            tmpWire.coorY[1] = (signalY < touchY)? signalY + M3_minLength : signalY - M3_minLength;
-            
-            tmpWire.width = M3_width;
-            tmpWire.layerName = layers[4].GetName();
-            tmpWire.numPathPoint = 2;
-            Wires.push_back(tmpWire); //M3 min area
-        }
-
+    
+    if (fabs(touchY - signalY) < M3_minlength) {
+        tmpWire = makeM3MinAreaWire(touchX, touchY);
+        Wires.push_back(tmpWire);
+    }
     }
     return foundM1M3;
 }  
