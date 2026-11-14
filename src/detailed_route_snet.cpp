@@ -216,6 +216,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         std::vector<Wire>& Wires, Point2D<int>& powerPoint) {
     
     std::vector<Rect2D<double>> M2obsRect;
+    std::vector<Rect2D<double>> M3obsRect;
     std::vector<Rect2D<double>> M1obsRect;
     std::vector<Rect2D<double>> V1obsRect; 
     std::vector<Rect2D<double>> V2obsRect;
@@ -254,6 +255,13 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     V2obsRect.push_back(rect);
                 }
             }
+            else if (layerIdx == 4) { // M3
+                if (pin.use_ != StrToSignalUse(signal)) {
+                    for (auto rect : layerRect.rects_) {
+                        M3obsRect.push_back(rect);
+                    }
+                }
+            }
         }
     }
     
@@ -278,7 +286,12 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 for (auto rect : layerRect.rects_) {
                     V2obsRect.push_back(rect);
                 }
+        }
+        else if (layerIdx == 4) { // M3
+            for (auto rect : layerRect.rects_) {
+                M3obsRect.push_back(rect);
             }
+        }
     }
   
 
@@ -398,6 +411,37 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     }
     return false;
 };
+    auto viaM3Blocked = [&M3obsRect, &layers, dbuPerMicron](
+        const LayerRect &metalLayer,
+        const Point2D<double> &origin) {
+
+        auto spacingTable = layers[4].GetSpacingTable();
+
+        for (const auto &metal : metalLayer.rects_) {
+            double h = metal.ur.x - metal.ll.x;
+            double v = metal.ur.y - metal.ll.y;
+
+            double spacing1 = spacingTable->GetSpacingFor(h, v);
+            double spacing2 = spacingTable->GetSpacingFor(v, h);
+            double spacing = std::max(spacing1, spacing2) * dbuPerMicron;
+
+            double lx = origin.x + metal.ll.x * dbuPerMicron;
+            double ly = origin.y + metal.ll.y * dbuPerMicron;
+            double ux = origin.x + metal.ur.x * dbuPerMicron;
+            double uy = origin.y + metal.ur.y * dbuPerMicron;
+
+            for (const auto &obs : M3obsRect) {
+                if (lx < obs.ur.x + spacing &&
+                    ux > obs.ll.x - spacing &&
+                    ly < obs.ur.y + spacing &&
+                    uy > obs.ll.y - spacing) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
     auto M2MetalHasMinArea = [&layers](const LayerRect &metalLayer) {
         const double minArea = layers[2].GetArea();
 
@@ -540,6 +584,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
             const auto &upperMetal = shapes[0];
             if (viaM2Blocked(upperMetal, origin)) {
+                continue;
+            }
+            if (viaM3Blocked(shapes[2], origin)) {
                 continue;
             }
             Point2D<double> originDelta( origin.x - M1M2ViaOrigin.x, origin.y - M1M2ViaOrigin.y);
