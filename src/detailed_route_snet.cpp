@@ -671,14 +671,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         }
         return false;
     };
-    if (verbose_ >= debug) {
-        for (auto rect : pinRect) {
-            std::cout << "M1 supply pin: " << component.name_
-                      << " supply: " << signal
-                      << " rect: " << rect.Str()
-                      << " DBU" << std::endl;
-        }
-    }
     for(auto pinPoint : trackClosestPinPoint) {
         int trackIdx = pinPoint.first;
         touchX = track.GetStart() + trackIdx * track.GetStep();
@@ -763,16 +755,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                         bool covered = PinCoversRect(pinRect, viaMetalRect);
                         if (!covered) {
                             M1pinCovered = false;
-                        }
-                        if (verbose_ >= debug) {
-                            std::cout << "M1 pin coverage candidate: "
-                                      << via.GetName()
-                                      << " instance: " << component.name_
-                                      << " supply: " << signal
-                                      << " origin: " << touchPoint.Str()
-                                      << " metal: " << viaMetalRect.Str()
-                                      << " DBU covered: " << covered
-                                      << std::endl;
                         }
                     }
                 }
@@ -1223,6 +1205,17 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         tmpWire.width = 0;
         tmpWire.viaName = vias[viaID].GetName();
         Wires.push_back(tmpWire);//M3 to M2 via, touch
+        if (verbose_ >= debug) {
+            std::cout << "M2-M3 emitted: "
+                      << vias[M2M3ViaIdx].GetName()
+                      << " cuts: "
+                      << vias[M2M3ViaIdx].GetLayerRectsRef()[1].rects_.size()
+                      << " instance: " << component.name_
+                      << " supply: " << signal
+                      << " origin: (" << M2M3ViaOrigin.x
+                      << ", " << M2M3ViaOrigin.y << ") DBU\n";
+}
+
 
         
         if (needM2Pad) {
