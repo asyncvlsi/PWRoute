@@ -580,6 +580,26 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         int zOffset = getZRouteOffset(x, y);
         Point2D<double> anchor(x + zOffset, y);
         const auto &lowerMetal = vias[M1M2ViaIdx].GetLayerRectsRef()[2];
+        Wire m3Wire = makeM3Wire(x, y);
+        double halfWidth = m3Wire.width / 2.0;
+        Rect2D<double> m3WireRect( m3Wire.coorX[0] - halfWidth,
+                                   std::min(m3Wire.coorY[0], m3Wire.coorY[1]) - halfWidth,
+                                   m3Wire.coorX[0] + halfWidth,
+                                   std::max(m3Wire.coorY[0], m3Wire.coorY[1]) + halfWidth);
+        auto m3SpacingTable = layers[4].GetSpacingTable();
+        double wireH = m3Wire.width / (double) dbuPerMicron;
+        double wireV = (m3WireRect.ur.y - m3WireRect.ll.y) / dbuPerMicron;
+
+        double wireSpacing = std::max( m3SpacingTable->GetSpacingFor(wireH, wireV),
+                                       m3SpacingTable->GetSpacingFor(wireV, wireH)) * dbuPerMicron;
+        for (const auto &obs : M3obsRect) {
+            if (m3WireRect.ll.x < obs.ur.x + wireSpacing &&
+                m3WireRect.ur.x > obs.ll.x - wireSpacing &&
+                m3WireRect.ll.y < obs.ur.y + wireSpacing &&
+                m3WireRect.ur.y > obs.ll.y - wireSpacing) {
+                return false;
+            }
+        }
         for (int viaIdx : layerPair_2_viaIds_.at(std::make_pair(2, 4))) {
             const auto &shapes = vias[viaIdx].GetLayerRectsRef();
             if (shapes[0].rects_.empty() ||
@@ -616,6 +636,28 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             if (viaM3Blocked(shapes[2], origin)) {
                 continue;
             }
+            //at least one M3 rectangle of this candidate should contact the wire
+            bool touchesM3Wire = false;
+            for (const auto &metal : shapes[2].rects_) {
+                double lx = origin.x + metal.ll.x * dbuPerMicron;
+                double ly = origin.y + metal.ll.y * dbuPerMicron;
+                double ux = origin.x + metal.ur.x * dbuPerMicron;
+                double uy = origin.y + metal.ur.y * dbuPerMicron;
+
+                double overlapX = std::min(ux, m3WireRect.ur.x)
+                                - std::max(lx, m3WireRect.ll.x);
+                double overlapY = std::min(uy, m3WireRect.ur.y)
+                                - std::max(ly, m3WireRect.ll.y);
+
+                if ((overlapX > 0 && overlapY >= 0) ||
+                    (overlapY > 0 && overlapX >= 0)) {
+                    touchesM3Wire = true;
+                    break;
+                }
+            }
+        if (!touchesM3Wire) {
+            continue;
+        }
             Point2D<double> originDelta( origin.x - M1M2ViaOrigin.x, origin.y - M1M2ViaOrigin.y);
             bool connectedM2 = zOffset == 0 && M2LandingsOverlap(lowerMetal, upperMetal, originDelta);
             bool candidateNeedsPad = !M2MetalHasMinArea(upperMetal) && !(M1M2HasM2MinArea && connectedM2);
