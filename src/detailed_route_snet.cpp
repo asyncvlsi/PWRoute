@@ -530,6 +530,33 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         }
         return moveRight ? M3_pitch : -M3_pitch;
     };
+    auto makeM3Wire = [&](double x, double y) -> Wire {
+        Wire wire;
+
+        double wireX = x + getZRouteOffset(x, y);
+        wire.coorX[0] = wireX;
+        wire.coorX[1] = wireX;
+        wire.coorY[0] = y;
+
+        if (fabs(signalY - y) >= M3_minlength) {
+            wire.coorY[1] = signalY;
+        }
+        else {
+            wire.coorY[1] = (signalY > y)
+                ? y + M3_minlength
+                : y - M3_minlength;
+        }
+        wire.numPathPoint = 2;
+        wire.layerName = layers[4].GetName();
+        if (DetailedRouteCloseVia(abs(signalY - y), pwgnd_.m3_expanded_range)) {
+            wire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
+        }
+        else {
+            wire.width = M3_width;
+        }
+        return wire;
+    };
+
 
     
     bool foundM1M3 = false;
@@ -1113,22 +1140,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         if(signal == "GROUND" && touchX == powerPoint.x && ((touchY < signalY && powerPoint.y > touchY) ||
                     (touchY > signalY && powerPoint.y < touchY))) {
 
-            tmpWire.coorX[0] = touchX + zRouteOffset;
-            tmpWire.coorY[0] = touchY;
-            tmpWire.coorX[1] = touchX + zRouteOffset;
-            if(fabs(signalY - touchY) >= M3_minlength)
-                tmpWire.coorY[1] = signalY;
-            else {
-                tmpWire.coorY[1] = (signalY > touchY)? touchY + M3_minlength : touchY - M3_minlength;
-            }
-            tmpWire.numPathPoint = 2;
-            tmpWire.layerName = layers[4].GetName(); //M3
-            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
-	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
-	    else
-	        tmpWire.width = M3_width;
-            Wires.push_back(tmpWire);//M3 wire
-            
+            tmpWire = makeM3Wire(touchX, touchY);
+            Wires.push_back(tmpWire);
+ 
             tmpWire.coorX[0] = touchX - M2_width / 2;//
             tmpWire.coorY[0] = touchY;
             tmpWire.coorX[1] = touchX + zRouteOffset + M2_width / 2;//
@@ -1144,22 +1158,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         }
         else { //normal route without Z
-            tmpWire.coorX[0] = touchX;
-            tmpWire.coorY[0] = touchY;
-            tmpWire.coorX[1] = touchX;
-            if(fabs(signalY - touchY) >= M3_minlength) //for min area
-                tmpWire.coorY[1] = signalY;
-            else {
-                tmpWire.coorY[1] = (signalY > touchY)? touchY + M3_minlength : touchY - M3_minlength;
-            }
-            tmpWire.numPathPoint = 2;
-            tmpWire.layerName = layers[4].GetName(); //M3
-            if(DetailedRouteCloseVia(abs(signalY - touchY), pwgnd_.m3_expanded_range))
-	        tmpWire.width = std::max(pwgnd_.m3_expanded_width, M3_width);
-	    else
-	        tmpWire.width = M3_width;
-            Wires.push_back(tmpWire);//M3 wire
-
+            tmpWire = makeM3Wire(touchX, touchY);
+            Wires.push_back(tmpWire);
         }
 
         int viaID = topLayerId_2_viaId_[cluster_horizontal_layer]; //M4
