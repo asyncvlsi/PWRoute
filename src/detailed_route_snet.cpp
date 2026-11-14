@@ -449,6 +449,30 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     int M3_width = layers[4].GetWidth() * dbuPerMicron;
     int M3_pitch = layers[4].GetPitchX() * dbuPerMicron;
     int M3_minlength = layer_min_length_[4] * dbuPerMicron;
+    auto getZRouteOffset = [&](double x, double y) -> int {
+        bool usesZRoute = signal == "GROUND" && x == powerPoint.x &&
+                    ((y < signalY && powerPoint.y > y) ||
+                     (y > signalY && powerPoint.y < y));
+
+        if (!usesZRoute) {
+            return 0;
+        }
+
+        const auto &xMesh = pwgnd_.xMesh;
+        bool moveRight = false;
+
+        for (std::size_t i = 0; i + 1 < xMesh.size(); ++i) {
+            if (x > xMesh[i] && x < (xMesh[i] + xMesh[i + 1]) / 2) {
+                moveRight = true;
+                break;
+            }
+            else if (x >= (xMesh[i] + xMesh[i + 1]) / 2 && x < xMesh[i + 1]) {
+                break;
+            }
+        }
+        return moveRight ? M3_pitch : -M3_pitch;
+    };
+
     
     bool foundM1M3 = false;
     double touchX, touchY;
@@ -950,19 +974,6 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             powerPoint.y = touchY;
         }
      
-        auto& xMesh = pwgnd_.xMesh;
-        bool move_right = false;
-        for(uint i = 0; i < xMesh.size() - 1; i++) {
-            if(touchX > xMesh[i] && touchX < (xMesh[i] + xMesh[i + 1]) / 2) {
-                move_right = true; 
-                break;
-            }
-            else if(touchX >= (xMesh[i] + xMesh[i + 1]) / 2 && touchX < xMesh[i + 1]) {
-                move_right = false;
-                break;
-            }
-        }
-   
         tmpWire.coorX[0] = M1M2ViaOrigin.x;
         tmpWire.coorY[0] = M1M2ViaOrigin.y;
         tmpWire.numPathPoint = 1;
@@ -994,14 +1005,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 << "; location: (" << M1M2ViaOrigin.x << ", " << M1M2ViaOrigin.y << ") DBU"
                 << "; DBU per micron: " << dbuPerMicron);
 
-        int zRouteOffset = 0;
-        if(signal == "GROUND" && touchX == powerPoint.x &&
-                ((touchY < signalY && powerPoint.y > touchY) || (touchY > signalY && powerPoint.y < touchY))) { //Z route, if power and gnd pins have the same X
-           
-            if(move_right)
-                zRouteOffset = M3_pitch;
-            else
-                zRouteOffset = - M3_pitch;
+        int zRouteOffset = getZRouteOffset(touchX, touchY);
+        if(signal == "GROUND" && touchX == powerPoint.x && ((touchY < signalY && powerPoint.y > touchY) ||
+                    (touchY > signalY && powerPoint.y < touchY))) {
 
             tmpWire.coorX[0] = touchX + zRouteOffset;
             tmpWire.coorY[0] = touchY;
