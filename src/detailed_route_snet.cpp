@@ -587,6 +587,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 }
             }
 
+            if (M1cover || !M1pinCovered) {
+                continue;
+            }
             //check cut blocks before rejecting or accepting via candidate
             V1cover = viaCutsBlocked(via.GetLayerRectsRef()[1], touchPoint);
             if (verbose_ >= debug && V1cover) {
@@ -594,6 +597,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                           << " at (" << touchPoint.x
                           << ", " << touchPoint.y << ") DBU"
                           << std::endl;
+            }
+            if (V1cover) {
+                continue;
             }
             bool M2viaBlocked = viaM2Blocked(via.GetLayerRectsRef()[2], touchPoint);
             if (verbose_ >= debug && M2viaBlocked) {
@@ -809,6 +815,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     break;
                 }
             }
+            if (M1cover || !M1pinCovered) {
+                continue;
+            }
             //check cut blocks before rejecting or accepting via candidate
             V1cover = viaCutsBlocked(via.GetLayerRectsRef()[1], touchPoint);
             if (verbose_ >= debug && V1cover) {
@@ -816,6 +825,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                           << " at (" << touchPoint.x
                           << ", " << touchPoint.y << ") DBU"
                           << std::endl;
+            }
+            if (V1cover) {
+                continue;
             }
             bool M2viaBlocked = viaM2Blocked(via.GetLayerRectsRef()[2], touchPoint);
             if (verbose_ >= debug && M2viaBlocked) {
