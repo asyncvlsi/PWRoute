@@ -218,6 +218,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     std::vector<Rect2D<double>> M2obsRect;
     std::vector<Rect2D<double>> M1obsRect;
     std::vector<Rect2D<double>> V1obsRect; 
+    std::vector<Rect2D<double>> V2obsRect;
     std::vector<Rect2D<double>> pinRect;
 
     auto tracks = db_ptr_->GetDesignPtr()->GetTracksRef();
@@ -248,6 +249,11 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     V1obsRect.push_back(rect);// can be the same signal
                 }
             }
+            else if (layerIdx == 3) { // V2
+                for (auto rect : layerRect.rects_) {
+                    V2obsRect.push_back(rect);
+                }
+            }
         }
     }
     
@@ -268,6 +274,11 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 V1obsRect.push_back(rect);
             }
         }
+        else if (layerIdx == 3) { // V2
+                for (auto rect : layerRect.rects_) {
+                    V2obsRect.push_back(rect);
+                }
+            }
     }
   
 
@@ -316,18 +327,24 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     // int V1_width = layers[1].GetWidth() * dbuPerMicron;
     //go through each cut now that we have multiple ones, compute if blocked
     int V1_spacing = layers[1].GetSpacing() * dbuPerMicron;
-    auto viaCutsBlocked = [&V1obsRect, V1_spacing, dbuPerMicron](const LayerRect &cutLayer, const Point2D<double> &origin){
-        for (const auto &cut : cutLayer.rects_){
+    int V2_spacing = layers[3].GetSpacing() * dbuPerMicron;
+    auto viaCutsBlocked = [dbuPerMicron](
+        const LayerRect &cutLayer,
+        const Point2D<double> &origin,
+        const std::vector<Rect2D<double>> &obstacles,
+        int spacing) {
+
+        for (const auto &cut : cutLayer.rects_) {
             double lx = origin.x + cut.ll.x * dbuPerMicron;
             double ly = origin.y + cut.ll.y * dbuPerMicron;
             double ux = origin.x + cut.ur.x * dbuPerMicron;
             double uy = origin.y + cut.ur.y * dbuPerMicron;
 
-            for (const auto &obs : V1obsRect){
-                if (lx < obs.ur.x + V1_spacing &&
-                    ux > obs.ll.x - V1_spacing &&
-                    ly < obs.ur.y + V1_spacing &&
-                    uy > obs.ll.y - V1_spacing) {
+            for (const auto &obs : obstacles) {
+                if (lx < obs.ur.x + spacing &&
+                    ux > obs.ll.x - spacing &&
+                    ly < obs.ur.y + spacing &&
+                    uy > obs.ll.y - spacing) {
                     return true;
                 }
             }
@@ -518,6 +535,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 origin.x -= round(dx);
                 origin.y -= round(dy);
             }
+            if (viaCutsBlocked(shapes[1], origin, V2obsRect, V2_spacing)) {
+                continue;
+            }
             const auto &upperMetal = shapes[0];
             if (viaM2Blocked(upperMetal, origin)) {
                 continue;
@@ -663,7 +683,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 continue;
             }
             //check cut blocks before rejecting or accepting via candidate
-            V1cover = viaCutsBlocked(via.GetLayerRectsRef()[1], touchPoint);
+            V1cover = viaCutsBlocked(via.GetLayerRectsRef()[1], touchPoint, V1obsRect, V1_spacing);
             if (verbose_ >= debug && V1cover) {
                 std::cout << "V1 cut obstruction: " << via.GetName()
                           << " at (" << touchPoint.x
@@ -886,7 +906,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 continue;
             }
             //check cut blocks before rejecting or accepting via candidate
-            V1cover = viaCutsBlocked(via.GetLayerRectsRef()[1], touchPoint);
+            V1cover = viaCutsBlocked(via.GetLayerRectsRef()[1], touchPoint, V1obsRect, V1_spacing);
             if (verbose_ >= debug && V1cover) {
                 std::cout << "V1 cut obstruction: " << via.GetName()
                           << " at (" << touchPoint.x
