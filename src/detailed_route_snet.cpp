@@ -728,6 +728,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         
         
         if(V1cover == false && M2cover == false && M1cover == false && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {       
+            Point2D<double> upperOrigin(touchX + getZRouteOffset(touchX, touchY), touchY);
+            if (viaM2Blocked(M2M3Metal, upperOrigin)) {
+                continue;
+            }
             foundM1M3 = true;
             break;
         }
@@ -958,6 +962,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         
  
        if(V1cover == false && M2cover == false && M1cover == false && AdjMeshPointCheck(touchX, signalY, track.GetStep())) {       
+            Point2D<double> upperOrigin( touchX + getZRouteOffset(touchX, touchY), touchY);
+            if (viaM2Blocked(M2M3Metal, upperOrigin)) {
+                continue;
+            }
             foundM1M3 = true;
             break;
         }
