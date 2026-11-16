@@ -1578,7 +1578,38 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
         return true;
     };
 
-        //read rects collected and figure out if they block
+    auto viaM2Blocked = [&obsRect, &layers, dbuPerMicron](
+        const LayerRect &metalLayer,
+        const Point2D<double> &origin) -> bool {
+
+        auto spacingTable = layers[2].GetSpacingTable();
+
+        for (const auto &metal : metalLayer.rects_) {
+            double h = metal.ur.x - metal.ll.x;
+            double v = metal.ur.y - metal.ll.y;
+
+            double spacing = std::max(
+                spacingTable->GetSpacingFor(h, v),
+                spacingTable->GetSpacingFor(v, h)) * dbuPerMicron;
+
+            double lx = origin.x + metal.ll.x * dbuPerMicron;
+            double ly = origin.y + metal.ll.y * dbuPerMicron;
+            double ux = origin.x + metal.ur.x * dbuPerMicron;
+            double uy = origin.y + metal.ur.y * dbuPerMicron;
+
+            for (const auto &obs : obsRect) {
+                if (lx < obs.ur.x + spacing &&
+                    ux > obs.ll.x - spacing &&
+                    ly < obs.ur.y + spacing &&
+                    uy > obs.ll.y - spacing) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    //read rects collected and figure out if they block
     auto generatedM3Blocked = [&](const Rect2D<double> &candidate, double candidateSpacing) -> bool {
         auto spacingTable = layers[4].GetSpacingTable();
 
@@ -1675,18 +1706,6 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     };
 
 
-    PinEdge pin_edges;
-    if(pwgnd_.same_signal_obs_reserve_) {
-        //std::cout << "component: " << component.name_ << std::endl;
-        ExtractPinEdge(component.name_, pinRect, pin_edges);
-        /*if(component.name_ == "tst_aelem_50_6_as__10_act_acx0") {
-            for(auto e : pin_edges.l_edges) 
-                std::cout << "left: " << e << std::endl;
-            for(auto e : pin_edges.r_edges) 
-                std::cout << "right: " << e << std::endl;
-        }*/
-    }
-
     Track track = tracks[layerid_2_trackid_[4]]; //M3
 
     std::map<int, int> trackClosestPinPoint;
@@ -1697,29 +1716,9 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     int M2_pitch = layers[2].GetPitchY() * dbuPerMicron; 
 
 
-    int viaIdx = topLayerId_2_viaId_[detailed_route_layer];//M3
-    auto via = vias[viaIdx];
-    auto viaRect = via.GetLayerRectsRef()[0].rects_[0]; //M2
-    double h = (viaRect.ur.x - viaRect.ll.x);
-    double v = (viaRect.ur.y - viaRect.ll.y);
-    double viaWidth = (h > v)? v * dbuPerMicron : h * dbuPerMicron;
-    double viaLength = (h > v)? h * dbuPerMicron : v * dbuPerMicron;
-    
-    auto M2_spacing_table = layers[2].GetSpacingTable();
-    double spacing1 = M2_spacing_table->GetSpacingFor(h, v);
-    double spacing2 = M2_spacing_table->GetSpacingFor(v, h);
-    double M2_spacing = (double) std::max(spacing1, spacing2) * (double) dbuPerMicron;
-    int width = layers[4].GetWidth() * dbuPerMicron; //M3
-    int pitch = layers[4].GetPitchX() * dbuPerMicron;
-  
-    h *= dbuPerMicron;
-    v *= dbuPerMicron;
-    int h_extend = std::max((int)h, M2_width) / 2;
-    int v_extend = std::max((int)v, M2_width) / 2;  
     findClosestTouchPoints(pinRect, trackClosestPinPoint, track, 0, signalY); // no expand
     findFarthestTouchPoints(pinRect, trackFarthestPinPoint, track, 0, signalY); // no expand
     
-    //findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, h / 2 + M2_spacing, signalY); // 
 
     int M3_width = layers[4].GetWidth() * dbuPerMicron;
     int M3_pitch = layers[4].GetPitchX() * dbuPerMicron;
@@ -1864,6 +1863,9 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             if (!viaM2PinCovered(candidateIdx, origin)) {
                 continue;
             }
+            if (viaM2Blocked(shapes[0], origin)) {
+                continue;
+            }
             if (viaCutsBlocked(shapes[1], origin, V2obsRect, V2_spacing)) {
                 if (verbose_ >= debug) {
                     std::cout << "Direct V2 cut obstruction:"
@@ -1906,36 +1908,9 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
         touchY = pinPoint.second;
 
         int farthestY = trackFarthestPinPoint[trackIdx];
-        if(verbose_ > 2 && component.name_ == "tst_aelem_50_6_apush__muxi_adata__and_50_6_56_6") {
-            std::cout << "close -> far : " << touchY << " " << farthestY << std::endl;
-            std::cout << h_extend << " " << v_extend << " " << M2_spacing << std::endl;
-        } 
 	
-	    while(1) {	
-            if(verbose_ > 2 && component.name_ == "tst_aelem_51_6_ae25_a__84__") 
-                std::cout << touchY << std::endl;            
-            Point2D<double> touchPoint(touchX, touchY);
-            bool M2cover = false, OutOfComp = false;
-
-            for(auto rect : obsRect) {
-                auto tmpRect = rect;
-                tmpRect.ll.x -= (h_extend + M2_spacing); // just gaurantee via 
-                tmpRect.ur.x += (h_extend + M2_spacing); 
-                tmpRect.ll.y -= (v_extend + M2_spacing);
-                tmpRect.ur.y += (v_extend + M2_spacing);
-                if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
-                    if(verbose_ > 2 && component.name_ == "tst_aelem_51_6_ae25_a__84__") 
-                        std::cout << rect << std::endl;
-                    M2cover = true;
-                    break;
-                }
-                if(OutOfComponent(component, touchX, touchY, h/2 + M2_spacing)) {
-		            OutOfComp = true;
-		            break;
-	            }
-            } // m2 side min area doesn't conflict with m2 obs       
-            if (!M2cover && !OutOfComp && AdjMeshPointCheck(touchX, signalY, track.GetStep()) &&
-                SameSignalObsBlock(touchX, touchY, h_extend, v_extend, M2_spacing, pin_edges) &&
+        while (1) {
+            if (AdjMeshPointCheck(touchX, signalY, track.GetStep()) &&
                 findDirectM2M3Via(touchX, touchY)) {
                 foundM2 = true;
                 break;
