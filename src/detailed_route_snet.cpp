@@ -411,7 +411,58 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     }
     return false;
 };
-    auto viaM3Blocked = [&M3obsRect, &layers, dbuPerMicron](
+
+    //read rects collected and figure out if they block
+    auto generatedM3Blocked = [&](const Rect2D<double> &candidate, double candidateSpacing) -> bool {
+        auto spacingTable = layers[4].GetSpacingTable();
+
+        auto blockedBy = [&](const std::vector<Rect2D<double>> &obstacles, bool sameSupply) -> bool {
+            for (const auto &obs : obstacles) {
+                double overlapX = std::min(candidate.ur.x, obs.ur.x) - std::max(candidate.ll.x, obs.ll.x);
+                double overlapY = std::min(candidate.ur.y, obs.ur.y) - std::max(candidate.ll.y, obs.ll.y);
+
+                bool touches = (overlapX > 0 && overlapY >= 0) || (overlapY > 0 && overlapX >= 0);
+
+                if (sameSupply && touches) {
+                    continue;
+                }
+
+                double h = (obs.ur.x - obs.ll.x) / dbuPerMicron;
+                double v = (obs.ur.y - obs.ll.y) / dbuPerMicron;
+                double obstacleSpacing = std::max(
+                    spacingTable->GetSpacingFor(h, v),
+                    spacingTable->GetSpacingFor(v, h)) * dbuPerMicron;
+                double spacing = std::max(candidateSpacing, obstacleSpacing);
+
+                if (candidate.ll.x < obs.ur.x + spacing &&
+                    candidate.ur.x > obs.ll.x - spacing &&
+                    candidate.ll.y < obs.ur.y + spacing &&
+                    candidate.ur.y > obs.ll.y - spacing) {
+                    if (verbose_ >= debug) {
+                        std::cout << "Generated M3 obstruction: supply: "
+                                  << signal << " candidate: ("
+                                  << candidate.ll.x << ", " << candidate.ll.y
+                                  << ")(" << candidate.ur.x << ", "
+                                  << candidate.ur.y << ") DBU"
+                                  << " obstacle: ("
+                                  << obs.ll.x << ", " << obs.ll.y
+                                  << ")(" << obs.ur.x << ", " << obs.ur.y << ") DBU"
+                                  << " sameSupply: " << sameSupply
+                                  << " spacing: " << spacing << " DBU"
+                                  << " overlapX: " << overlapX
+                                  << " overlapY: " << overlapY
+                                  << std::endl;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        };
+        return blockedBy(pwgnd_.powerM3Rects, signal == "POWER") ||
+               blockedBy(pwgnd_.gndM3Rects, signal == "GROUND");
+    };
+
+    auto viaM3Blocked = [&M3obsRect, &layers, &generatedM3Blocked, dbuPerMicron](
         const LayerRect &metalLayer,
         const Point2D<double> &origin) {
 
@@ -437,6 +488,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     uy > obs.ll.y - spacing) {
                     return true;
                 }
+            }
+            Rect2D<double> candidate(lx, ly, ux, uy);
+            if (generatedM3Blocked(candidate, spacing)) {
+                return true;
             }
         }
         return false;
@@ -617,6 +672,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         double wireSpacing = std::max( m3SpacingTable->GetSpacingFor(wireH, wireV),
                                        m3SpacingTable->GetSpacingFor(wireV, wireH)) * dbuPerMicron;
+        if (generatedM3Blocked(m3WireRect, wireSpacing)) {
+            return false;
+        }
         for (const auto &obs : M3obsRect) {
             if (m3WireRect.ll.x < obs.ur.x + wireSpacing &&
                 m3WireRect.ur.x > obs.ll.x - wireSpacing &&
@@ -637,6 +695,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                 m3SpacingTable->GetSpacingFor(extraH, extraV),
                 m3SpacingTable->GetSpacingFor(extraV, extraH)
             ) * dbuPerMicron;
+
+            if (generatedM3Blocked(extraRect, extraSpacing)) {
+                return false;
+            }
 
             for (const auto &obs : M3obsRect) {
                 if (extraRect.ll.x < obs.ur.x + extraSpacing &&
