@@ -1891,6 +1891,28 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                 continue;
             }
 
+            Rect2D<double> wireRect = getDirectM3WireRect(candidateWire);
+            bool touchesM3Wire = false;
+            for (const auto &metal : shapes[2].rects_) {
+                double lx = origin.x + metal.ll.x * dbuPerMicron;
+                double ly = origin.y + metal.ll.y * dbuPerMicron;
+                double ux = origin.x + metal.ur.x * dbuPerMicron;
+                double uy = origin.y + metal.ur.y * dbuPerMicron;
+
+                double overlapX = std::min(ux, wireRect.ur.x)
+                                - std::max(lx, wireRect.ll.x);
+                double overlapY = std::min(uy, wireRect.ur.y)
+                                - std::max(ly, wireRect.ll.y);
+
+                if ((overlapX > 0 && overlapY >= 0) ||
+                    (overlapY > 0 && overlapX >= 0)) {
+                    touchesM3Wire = true;
+                    break;
+                }
+            }
+            if (!touchesM3Wire) {
+                continue;
+            }
             selectedViaIdx = candidateIdx;
             selectedViaOrigin = origin;
             selectedRouteY = routeY;
