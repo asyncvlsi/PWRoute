@@ -649,6 +649,11 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         }
         for (int viaIdx : layerPair_2_viaIds_.at(std::make_pair(2, 4))) {
             const auto &shapes = vias[viaIdx].GetLayerRectsRef();
+            const auto cutCount = shapes[1].rects_.size();
+            if (cutCount < static_cast<std::size_t>(m2_m3_min_cuts_) || (m2_m3_max_cuts_ != 0 &&
+                 cutCount > static_cast<std::size_t>(m2_m3_max_cuts_))) {
+                continue;
+            }
             if (shapes[0].rects_.empty() ||
                 shapes[1].rects_.empty() ||
                 shapes[2].rects_.empty()) {
@@ -738,8 +743,14 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         M1M2ViaName.clear();//no via has been selected
         for (int viaIdx : layerPair_2_viaIds_.at(std::make_pair(0, 2))) {
 
+            const auto cutCount = vias[viaIdx].GetLayerRectsRef()[1].rects_.size();
+            if (cutCount < static_cast<std::size_t>(m1_m2_min_cuts_) || (m1_m2_max_cuts_ != 0 &&
+                 cutCount > static_cast<std::size_t>(m1_m2_max_cuts_))) {
+                continue;
+            }
+
             auto via = vias[viaIdx];
-                        Point2D<double> centerOffset(0, 0);
+            Point2D<double> centerOffset(0, 0);
 
             if (center_vias_) {
                 Point2D<double> centerMicrons;
@@ -964,8 +975,14 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         M1M2ViaName.clear();//no via has been selected
         for (int viaIdx : layerPair_2_viaIds_.at(std::make_pair(0, 2))) {
 
+            const auto cutCount = vias[viaIdx].GetLayerRectsRef()[1].rects_.size();
+            if (cutCount < static_cast<std::size_t>(m1_m2_min_cuts_) || (m1_m2_max_cuts_ != 0 &&
+                 cutCount > static_cast<std::size_t>(m1_m2_max_cuts_))) {
+                continue;
+            }
+
             auto via = vias[viaIdx];
-                        Point2D<double> centerOffset(0, 0);
+            Point2D<double> centerOffset(0, 0);
 
             if (center_vias_) {
                 Point2D<double> centerMicrons;

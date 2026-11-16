@@ -1111,6 +1111,21 @@ void PWRoute::SetCenterVias(bool center_vias) {
     }
 }
 
+void PWRoute::SetViaCutLimits(int m1_m2_min, int m1_m2_max, int m2_m3_min, int m2_m3_max) {
+    m1_m2_min_cuts_ = m1_m2_min;
+    m1_m2_max_cuts_ = m1_m2_max;
+    m2_m3_min_cuts_ = m2_m3_min;
+    m2_m3_max_cuts_ = m2_m3_max;
+
+    if (verbose_ > none) {
+        std::cout << "M1-M2 cut limits: min=" << m1_m2_min_cuts_
+                  << " max=" << m1_m2_max_cuts_ << " (0=unlimited)\n";
+        std::cout << "M2-M3 cut limits: min=" << m2_m3_min_cuts_
+                  << " max=" << m2_m3_max_cuts_ << " (0=unlimited)\n";
+    }
+}
+
+
 void PWRoute::RunPWRoute() {
     if(verbose_ > none) {
         std::cout << "high_mesh_multiple_width: "  << high_mesh_multiple_width << std::endl;

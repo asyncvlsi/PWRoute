@@ -118,6 +118,10 @@ class PWRoute {
 
     PWGND pwgnd_;
     bool center_vias_ = false;
+    int m1_m2_min_cuts_ = 1;
+    int m1_m2_max_cuts_ = 0;
+    int m2_m3_min_cuts_ = 1;
+    int m2_m3_max_cuts_ = 0;
 
 
     int POWER_FOUND = 0;
@@ -187,6 +191,7 @@ class PWRoute {
     void SetMeshWidthStep(int, int, int);
     void SetReinforcement(bool ); 
     void SetCenterVias(bool center_vias);
+    void SetViaCutLimits(int m1_m2_min, int m1_m2_max, int m2_m3_min, int m2_m3_max);
     void RunPWRoute();
     void ExportToPhyDB();
 
