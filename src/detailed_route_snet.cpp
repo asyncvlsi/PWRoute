@@ -1186,8 +1186,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     if(foundM1M3) {
         Wire tmpWire;
         auto &placedM2Rects = (signal == "POWER") ? pwgnd_.powerM2Rects : pwgnd_.gndM2Rects;
+        auto &placedM3Rects = (signal == "POWER") ? pwgnd_.powerM3Rects : pwgnd_.gndM3Rects;
 
-        
         if(signal == "POWER") { 
             powerPoint.x = touchX;
             powerPoint.y = touchY;
@@ -1200,9 +1200,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         tmpWire.width = 0;
         tmpWire.viaName = M1M2ViaName;
         Wires.push_back(tmpWire);//M2 to M1 via
-        RecordM2Metal(vias[M1M2ViaIdx].GetLayerRectsRef()[2], //record M2 from placed via
-                      Point2D<double>(tmpWire.coorX[0], 
-                      tmpWire.coorY[0]),
+        RecordViaMetal(vias[M1M2ViaIdx].GetLayerRectsRef()[2], //record M2 from placed via
+                      Point2D<double>(tmpWire.coorX[0], tmpWire.coorY[0]),
                       placedM2Rects);
 
 
@@ -1259,6 +1258,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         tmpWire.viaName = vias[viaID].GetName();
 	pwgnd_.usedConnectionPoints.insert(Point2D<int>(tmpWire.coorX[0], tmpWire.coorY[0]));
         Wires.push_back(tmpWire);//M3 to M4 via, mesh
+        RecordViaMetal(vias[meshViaIdx].GetLayerRectsRef()[0], //record mesh via M3 metal
+                Point2D<double>(tmpWire.coorX[0], tmpWire.coorY[0]),
+                placedM3Rects);
 
 
         viaID = M2M3ViaIdx;//M3
@@ -1269,6 +1271,9 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         tmpWire.width = 0;
         tmpWire.viaName = vias[viaID].GetName();
         Wires.push_back(tmpWire);//M3 to M2 via, touch
+        RecordViaMetal(vias[M2M3ViaIdx].GetLayerRectsRef()[2], //record via M3 metal
+               M2M3ViaOrigin,
+               placedM3Rects);
         if (verbose_ >= debug) {
             std::cout << "M2-M3 emitted: "
                       << vias[M2M3ViaIdx].GetName()
@@ -1574,7 +1579,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 
 }
 
-void PWRoute::RecordM2Metal(const LayerRect &metalLayer, const Point2D<double> &origin, std::vector<Rect2D<double>> &rects){
+void PWRoute::RecordViaMetal(const LayerRect &metalLayer, const Point2D<double> &origin, std::vector<Rect2D<double>> &rects){
     double dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
 
     for (const auto &metal : metalLayer.rects_) {
@@ -1586,7 +1591,7 @@ void PWRoute::RecordM2Metal(const LayerRect &metalLayer, const Point2D<double> &
 
         if (verbose_ >= debug) {
         const auto &placed = rects.back();
-            std::cout << "M2 recorded: layer: " << metalLayer.layer_name_
+            std::cout << "Via metal recorded: layer: " << metalLayer.layer_name_
                       << " origin: (" << origin.x << ", " << origin.y << ")"
                       << " rect: (" << placed.ll.x << ", " << placed.ll.y
                       << ")(" << placed.ur.x << ", " << placed.ur.y << ")"
@@ -1714,6 +1719,8 @@ void PWRoute::M2MetalFill(std::string signal) {
 void PWRoute::DetailedRouteSNet() {
     pwgnd_.powerM2Rects.clear();
     pwgnd_.gndM2Rects.clear();
+    pwgnd_.powerM3Rects.clear();
+    pwgnd_.gndM3Rects.clear();
 
     std::map<std::string, std::pair<int, int>> failedMasters;
 
