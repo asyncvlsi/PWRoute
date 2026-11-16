@@ -1476,12 +1476,15 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     std::vector<Rect2D<double>> pinRect;
     std::vector<Rect2D<double>> obsRect;
     std::vector<Rect2D<double>> M3obsRect;
+    std::vector<Rect2D<double>> V2obsRect;
 
 
     auto tracks = db_ptr_->GetDesignPtr()->GetTracksRef();
     auto layers = db_ptr_->GetTechPtr()->GetLayersRef();
     auto vias = db_ptr_->GetTechPtr()->GetLefViasRef();
     int dbuPerMicron = db_ptr_->GetDesignPtr()->GetUnitsDistanceMicrons();
+    int V2_spacing = layers[3].GetSpacing() * dbuPerMicron;
+
     
     for (auto pin : component.pins_) {
         for (auto layerRect : pin.layer_rects_) {
@@ -1495,6 +1498,11 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                     else {
                         obsRect.push_back(rect);
                     }
+                }
+            }
+            else if (layerIdx == 3) { // V2
+                for (auto rect : layerRect.rects_) {
+                    V2obsRect.push_back(rect);
                 }
             }
             else if (layerIdx == 4) { // M3
@@ -1514,6 +1522,11 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                 obsRect.push_back(rect);
             }
         }
+        else if (layerIdx == 3) { // V2
+            for (auto rect : layerRect.rects_) {
+                V2obsRect.push_back(rect);
+            }
+        }
         else if (layerIdx == 4) { // M3
             for (auto rect : layerRect.rects_) {
                 M3obsRect.push_back(rect);
@@ -1525,6 +1538,26 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     if(pinRect.size() == 0)
         return false;
 
+    auto viaCutsBlocked = [dbuPerMicron](
+        const LayerRect &cutLayer, const Point2D<double> &origin,
+        const std::vector<Rect2D<double>> &obstacles, int spacing) {
+        for (const auto &cut : cutLayer.rects_) {
+            double lx = origin.x + cut.ll.x * dbuPerMicron;
+            double ly = origin.y + cut.ll.y * dbuPerMicron;
+            double ux = origin.x + cut.ur.x * dbuPerMicron;
+            double uy = origin.y + cut.ur.y * dbuPerMicron;
+
+            for (const auto &obs : obstacles) {
+                if (lx < obs.ur.x + spacing &&
+                    ux > obs.ll.x - spacing &&
+                    ly < obs.ur.y + spacing &&
+                    uy > obs.ll.y - spacing) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
     //return true if master fits the landing
     auto viaM2PinCovered = [&](int candidateViaIdx, const Point2D<double> &origin) -> bool {
         const auto &metalLayer = vias[candidateViaIdx].GetLayerRectsRef()[0];
@@ -1829,6 +1862,18 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             origin.x = x + zOffset - centerOffset.x;
 
             if (!viaM2PinCovered(candidateIdx, origin)) {
+                continue;
+            }
+            if (viaCutsBlocked(shapes[1], origin, V2obsRect, V2_spacing)) {
+                if (verbose_ >= debug) {
+                    std::cout << "Direct V2 cut obstruction:"
+                              << " instance: " << component.name_
+                              << " supply: " << signal
+                              << " via: " << vias[candidateIdx].GetName()
+                              << " origin: (" << origin.x
+                              << ", " << origin.y << ") DBU"
+                              << std::endl;
+                }
                 continue;
             }
             Wire candidateWire = makeDirectM3Wire(x, routeY, zOffset);
