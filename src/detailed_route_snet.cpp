@@ -569,6 +569,16 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         return wire;
     };
 
+    auto getM3WireRect = [](const Wire &wire) -> Rect2D<double> {
+        double halfWidth = wire.width / 2.0;
+
+        return Rect2D<double>(
+            wire.coorX[0] - halfWidth,
+            std::min(wire.coorY[0], wire.coorY[1]) - halfWidth,
+            wire.coorX[0] + halfWidth,
+            std::max(wire.coorY[0], wire.coorY[1]) + halfWidth);
+    };
+
 
 
     
@@ -600,11 +610,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         }
         const auto &lowerMetal = vias[M1M2ViaIdx].GetLayerRectsRef()[2];
         Wire m3Wire = makeM3Wire(x, y);
-        double halfWidth = m3Wire.width / 2.0;
-        Rect2D<double> m3WireRect( m3Wire.coorX[0] - halfWidth,
-                                   std::min(m3Wire.coorY[0], m3Wire.coorY[1]) - halfWidth,
-                                   m3Wire.coorX[0] + halfWidth,
-                                   std::max(m3Wire.coorY[0], m3Wire.coorY[1]) + halfWidth);
+        Rect2D<double> m3WireRect = getM3WireRect(m3Wire);
         auto m3SpacingTable = layers[4].GetSpacingTable();
         double wireH = m3Wire.width / (double) dbuPerMicron;
         double wireV = (m3WireRect.ur.y - m3WireRect.ll.y) / dbuPerMicron;
@@ -622,13 +628,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         //wire obstacle check
         if (fabs(y - signalY) < M3_minlength) {
             Wire extraWire = makeM3MinAreaWire(x, y);
-            double extraHalfWidth = extraWire.width / 2.0;
-
-            Rect2D<double> extraRect(
-                extraWire.coorX[0] - extraHalfWidth,
-                std::min(extraWire.coorY[0], extraWire.coorY[1]) - extraHalfWidth,
-                extraWire.coorX[0] + extraHalfWidth,
-                std::max(extraWire.coorY[0], extraWire.coorY[1]) + extraHalfWidth);
+            Rect2D<double> extraRect = getM3WireRect(extraWire);
 
             double extraH = extraWire.width / (double) dbuPerMicron;
             double extraV = (extraRect.ur.y - extraRect.ll.y) / dbuPerMicron;
@@ -1229,6 +1229,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
             tmpWire = makeM3Wire(touchX, touchY);
             Wires.push_back(tmpWire);
+            placedM3Rects.push_back(getM3WireRect(tmpWire));
+
  
             tmpWire.coorX[0] = touchX - M2_width / 2;//
             tmpWire.coorY[0] = touchY;
@@ -1247,6 +1249,8 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         else { //normal route without Z
             tmpWire = makeM3Wire(touchX, touchY);
             Wires.push_back(tmpWire);
+            placedM3Rects.push_back(getM3WireRect(tmpWire));
+
         }
 
         int viaID = meshViaIdx; //M4
@@ -1306,10 +1310,10 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
            tmpWire.layerName = layers[2].GetName(); //M2
            Wires.push_back(tmpWire);//M2 min area 
 	}
-    
     if (fabs(touchY - signalY) < M3_minlength) {
         tmpWire = makeM3MinAreaWire(touchX, touchY);
         Wires.push_back(tmpWire);
+        placedM3Rects.push_back(getM3WireRect(tmpWire));
     }
     }
     return foundM1M3;
