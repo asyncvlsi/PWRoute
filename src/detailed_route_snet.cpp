@@ -1578,19 +1578,18 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 
     int selectedViaIdx = -1;
     Point2D<double> selectedViaOrigin;
+    int selectedRouteY = -1;
 
     auto findDirectM2M3Via = [&](double x, double y) -> bool {
         selectedViaIdx = -1;
-        bool usesZ = signal == "GROUND" && x == powerPoint.x &&
-            ((y < signalY && powerPoint.y > y) ||
-             (y > signalY && powerPoint.y < y));
-
-        int zOffset = usesZ ? static_cast<int>(layers[4].GetPitchX() * dbuPerMicron) : 0;
 
         for (int candidateIdx : layerPair_2_viaIds_.at(std::make_pair(2, 4))) {
             const auto &shapes = vias[candidateIdx].GetLayerRectsRef();
             auto cutCount = shapes[1].rects_.size();
-            if (shapes[0].rects_.empty() || shapes[1].rects_.empty() || shapes[2].rects_.empty()) {
+
+            if (shapes[0].rects_.empty() ||
+                shapes[1].rects_.empty() ||
+                shapes[2].rects_.empty()) {
                 continue;
             }
 
@@ -1600,32 +1599,70 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                 continue;
             }
 
-            Point2D<double> origin(x + zOffset, y);
-
+            Point2D<double> centerOffset(0, 0);
             if (center_vias_) {
                 Point2D<double> center;
                 if (!GetViaCutCenterOffset(shapes[1], center)) {
                     continue;
                 }
+
                 double dx = center.x * dbuPerMicron;
                 double dy = center.y * dbuPerMicron;
-                double grid = db_ptr_->GetTechPtr()->GetManufacturingGrid() * dbuPerMicron;
+                double grid = db_ptr_->GetTechPtr()->GetManufacturingGrid()
+                            * dbuPerMicron;
+
                 bool onDBU = fabs(dx - round(dx)) < 1e-6 &&
                              fabs(dy - round(dy)) < 1e-6;
                 bool onGrid = grid <= 0 ||
                     (fabs(dx / grid - round(dx / grid)) < 1e-6 &&
                      fabs(dy / grid - round(dy / grid)) < 1e-6);
+
                 if (!onDBU || !onGrid) {
                     continue;
                 }
-                origin.x -= round(dx);
-                origin.y -= round(dy);
+
+                centerOffset.x = round(dx);
+                centerOffset.y = round(dy);
             }
+
+            const auto &m2Metal = shapes[0];
+            double lowerY = m2Metal.rects_[0].ll.y * dbuPerMicron;
+            double upperY = m2Metal.rects_[0].ur.y * dbuPerMicron;
+
+            for (const auto &metal : m2Metal.rects_) {
+                lowerY = std::min(lowerY, metal.ll.y * dbuPerMicron);
+                upperY = std::max(upperY, metal.ur.y * dbuPerMicron);
+            }
+
+            Point2D<double> origin;
+            origin.y = (y < signalY) ? y - upperY : y - lowerY;
+            double anchorY = origin.y + centerOffset.y;
+
+            if (fabs(origin.y - round(origin.y)) >= 1e-6 ||
+                fabs(anchorY - round(anchorY)) >= 1e-6) {
+                continue;
+            }
+
+            origin.y = round(origin.y);
+            int routeY = static_cast<int>(round(anchorY));
+
+            bool usesZ = signal == "GROUND" && x == powerPoint.x &&
+                ((routeY < signalY && powerPoint.y > routeY) ||
+                 (routeY > signalY && powerPoint.y < routeY));
+
+            int zOffset = usesZ
+                ? static_cast<int>(layers[4].GetPitchX() * dbuPerMicron)
+                : 0;
+
+            origin.x = x + zOffset - centerOffset.x;
+
             if (!viaM2PinCovered(candidateIdx, origin)) {
                 continue;
             }
+
             selectedViaIdx = candidateIdx;
             selectedViaOrigin = origin;
+            selectedRouteY = routeY;
             return true;
         }
         return false;
@@ -1693,9 +1730,11 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     int M3_pitch = layers[4].GetPitchX() * dbuPerMicron;
     int M3_minlength = layer_min_length_[4] * dbuPerMicron;
 
+
     if(foundM2) {
+        touchY = selectedRouteY;
         Wire tmpWire;
-        if(signal == "POWER") { 
+        if(signal == "POWER") {
             powerPoint.x = touchX;
             powerPoint.y = touchY;
         }
