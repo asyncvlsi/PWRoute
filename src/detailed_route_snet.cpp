@@ -1507,6 +1507,27 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     if(pinRect.size() == 0)
         return false;
 
+    //return true if master fits the landing
+    auto viaM2PinCovered = [&](int candidateViaIdx, const Point2D<double> &origin) -> bool {
+        const auto &metalLayer = vias[candidateViaIdx].GetLayerRectsRef()[0];
+
+        if (metalLayer.rects_.empty()) {
+            return false;
+        }
+        for (const auto &metal : metalLayer.rects_) {
+            Rect2D<double> placedMetal(
+                origin.x + metal.ll.x * dbuPerMicron,
+                origin.y + metal.ll.y * dbuPerMicron,
+                origin.x + metal.ur.x * dbuPerMicron,
+                origin.y + metal.ur.y * dbuPerMicron);
+            if (!PinCoversRect(pinRect, placedMetal)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+
     PinEdge pin_edges;
     if(pwgnd_.same_signal_obs_reserve_) {
         //std::cout << "component: " << component.name_ << std::endl;
@@ -1554,6 +1575,61 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
     //findClosestTouchPoints(obsRect, trackClosestOBSPoint, track, h / 2 + M2_spacing, signalY); // 
 
     bool foundM2 = false;
+
+    int selectedViaIdx = -1;
+    Point2D<double> selectedViaOrigin;
+
+    auto findDirectM2M3Via = [&](double x, double y) -> bool {
+        selectedViaIdx = -1;
+        bool usesZ = signal == "GROUND" && x == powerPoint.x &&
+            ((y < signalY && powerPoint.y > y) ||
+             (y > signalY && powerPoint.y < y));
+
+        int zOffset = usesZ ? static_cast<int>(layers[4].GetPitchX() * dbuPerMicron) : 0;
+
+        for (int candidateIdx : layerPair_2_viaIds_.at(std::make_pair(2, 4))) {
+            const auto &shapes = vias[candidateIdx].GetLayerRectsRef();
+            auto cutCount = shapes[1].rects_.size();
+            if (shapes[0].rects_.empty() || shapes[1].rects_.empty() || shapes[2].rects_.empty()) {
+                continue;
+            }
+
+            if (cutCount < static_cast<std::size_t>(m2_m3_min_cuts_) ||
+                (m2_m3_max_cuts_ != 0 &&
+                 cutCount > static_cast<std::size_t>(m2_m3_max_cuts_))) {
+                continue;
+            }
+
+            Point2D<double> origin(x + zOffset, y);
+
+            if (center_vias_) {
+                Point2D<double> center;
+                if (!GetViaCutCenterOffset(shapes[1], center)) {
+                    continue;
+                }
+                double dx = center.x * dbuPerMicron;
+                double dy = center.y * dbuPerMicron;
+                double grid = db_ptr_->GetTechPtr()->GetManufacturingGrid() * dbuPerMicron;
+                bool onDBU = fabs(dx - round(dx)) < 1e-6 &&
+                             fabs(dy - round(dy)) < 1e-6;
+                bool onGrid = grid <= 0 ||
+                    (fabs(dx / grid - round(dx / grid)) < 1e-6 &&
+                     fabs(dy / grid - round(dy / grid)) < 1e-6);
+                if (!onDBU || !onGrid) {
+                    continue;
+                }
+                origin.x -= round(dx);
+                origin.y -= round(dy);
+            }
+            if (!viaM2PinCovered(candidateIdx, origin)) {
+                continue;
+            }
+            selectedViaIdx = candidateIdx;
+            selectedViaOrigin = origin;
+            return true;
+        }
+        return false;
+    };
     
     int touchX = -1, touchY = -1;
    
@@ -1592,10 +1668,11 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 		            break;
 	            }
             } // m2 side min area doesn't conflict with m2 obs       
-            if(!M2cover && !OutOfComp && AdjMeshPointCheck(touchX, signalY, track.GetStep()) && 
-                SameSignalObsBlock(touchX, touchY, h_extend, v_extend, M2_spacing, pin_edges)) {
-               foundM2 = true;
-               break;
+            if (!M2cover && !OutOfComp && AdjMeshPointCheck(touchX, signalY, track.GetStep()) &&
+                SameSignalObsBlock(touchX, touchY, h_extend, v_extend, M2_spacing, pin_edges) &&
+                findDirectM2M3Via(touchX, touchY)) {
+                foundM2 = true;
+                break;
             }
             if(touchY > signalY) {
 	            touchY += M2_pitch / 2;
@@ -1664,11 +1741,11 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 	        tmpWire.width = M2_width;
             Wires.push_back(tmpWire);//M2 wire
             
-            tmpWire.coorX[0] = touchX + zRouteOffset;
-            tmpWire.coorY[0] = touchY;
+            tmpWire.coorX[0] = selectedViaOrigin.x;
+            tmpWire.coorY[0] = selectedViaOrigin.y;
             tmpWire.numPathPoint = 1;
             tmpWire.width = 0;
-            viaID = topLayerId_2_viaId_[4]; //M2-M3 via, touch side
+            viaID = selectedViaIdx;
             tmpWire.viaName = vias[viaID].GetName();
             tmpWire.layerName = layers[4].GetName(); //M2-M3 via
             Wires.push_back(tmpWire);//M2 via
@@ -1690,15 +1767,39 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 	        tmpWire.width = M3_width;
             Wires.push_back(tmpWire);//M3 wire
 
-            tmpWire.coorX[0] = touchX;
-            tmpWire.coorY[0] = touchY;
-            viaID = topLayerId_2_viaId_[4]; //M2-M3 via, touch side
+            tmpWire.coorX[0] = selectedViaOrigin.x;
+            tmpWire.coorY[0] = selectedViaOrigin.y;
+            viaID = selectedViaIdx;
             tmpWire.numPathPoint = 1;
             tmpWire.width = 0;
             tmpWire.layerName = layers[4].GetName(); //M3
             tmpWire.viaName = vias[viaID].GetName();
             Wires.push_back(tmpWire);
         }
+        if (verbose_ >= debug) {
+            Point2D<double> origin(tmpWire.coorX[0], tmpWire.coorY[0]);
+            bool covered = viaM2PinCovered(viaID, origin);
+                        std::cout << "Direct M2 access emitted:"
+                      << " instance: " << component.name_
+                      << " supply: " << signal
+                      << " via: " << vias[viaID].GetName()
+                      << " cuts: "
+                      << vias[viaID].GetLayerRectsRef()[1].rects_.size()
+                      << " origin: (" << origin.x << ", " << origin.y << ") DBU"
+                      << " M2-covered: " << (covered ? "yes" : "no")
+                      << std::endl;
+
+            if (!covered) {
+                std::cout << "Direct M2 access protrusion:"
+                          << " instance: " << component.name_
+                          << " supply: " << signal
+                          << " via: " << vias[viaID].GetName()
+                          << " origin: (" << tmpWire.coorX[0]
+                          << ", " << tmpWire.coorY[0] << ") DBU"
+                          << std::endl;
+            }
+        }
+
         
         tmpWire.coorX[0] = touchX + zRouteOffset; 
         tmpWire.coorY[0] = signalY; 
