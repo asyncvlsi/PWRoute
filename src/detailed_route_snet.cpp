@@ -36,6 +36,9 @@ bool PWRoute::PinCoversRect(const std::vector<Rect2D<double>> &pinRects, const R
             }
         }
         uncovered.swap(nextUncovered);
+        if (uncovered.empty()) {
+            return true;
+        }
     }
     return uncovered.empty();
 }
@@ -438,6 +441,17 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                     candidate.ur.x > obs.ll.x - spacing &&
                     candidate.ll.y < obs.ur.y + spacing &&
                     candidate.ur.y > obs.ll.y - spacing) {
+                    if (sameSupply) { 
+                        Rect2D<double> nearRegion(
+                            std::max(candidate.ll.x, obs.ll.x - spacing),
+                            std::max(candidate.ll.y, obs.ll.y - spacing),
+                            std::min(candidate.ur.x, obs.ur.x + spacing),
+                            std::min(candidate.ur.y, obs.ur.y + spacing));
+
+                        if (PinCoversRect(obstacles, nearRegion)) {
+                            continue;
+                        }
+                    }
                     if (verbose_ >= debug) {
                         std::cout << "Generated M3 obstruction: supply: "
                                   << signal << " candidate: ("
