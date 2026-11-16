@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <math.h>
 #include "pwroute.h"
-#include "pwroute/pwroute.h"
 
 using namespace phydb;
 namespace pwroute {
