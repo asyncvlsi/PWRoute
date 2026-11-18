@@ -730,10 +730,29 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
         double v = (candidate.ur.y - candidate.ll.y) / dbuPerMicron;
         auto spacingTable = layers[2].GetSpacingTable();
 
-        double spacing = std::max(
-            spacingTable->GetSpacingFor(h, v),
-            spacingTable->GetSpacingFor(v, h)) * dbuPerMicron;
+        double spacing = std::max(spacingTable->GetSpacingFor(h, v), spacingTable->GetSpacingFor(v, h)) * dbuPerMicron;
 
+        for (const auto &obs : M2obsRect) {
+            if (candidate.ll.x < obs.ur.x + spacing &&
+                candidate.ur.x > obs.ll.x - spacing &&
+                candidate.ll.y < obs.ur.y + spacing &&
+                candidate.ur.y > obs.ll.y - spacing) {
+                if (verbose_ >= debug) {
+                    std::cout << "Stack local M2 wire obstruction:"
+                              << " instance: " << component.name_
+                              << " supply: " << signal
+                              << " candidate: (" << candidate.ll.x
+                              << ", " << candidate.ll.y << ")("
+                              << candidate.ur.x << ", " << candidate.ur.y << ")"
+                              << " obstacle: (" << obs.ll.x
+                              << ", " << obs.ll.y << ")("
+                              << obs.ur.x << ", " << obs.ur.y << ")"
+                              << " spacing: " << spacing << " DBU"
+                              << std::endl;
+                }
+                return true;
+            }
+        }
         return generatedM2Blocked(candidate, spacing);
     };
     //helper function for finding M2-M3 via
@@ -1029,36 +1048,12 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         M2wideFail= false;
         M2thinFail = false;
-        for(auto rect : M2obsRect) {
-            auto tmpRect = rect;
-            tmpRect.ll.x -= (M2thinHalfLength + M2_spacing);
-            tmpRect.ur.x += (M2thinHalfLength + M2_spacing);
-            tmpRect.ll.y -= (M2_width / 2 + M2_spacing);
-            tmpRect.ur.y += (M2_width / 2 + M2_spacing);
-            
-            if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
-                M2thinFail = true;
-                break;
-            }
-        } // m2 side min area doesn't conflict with m2 obs
         if(touchPoint.x - M2thinHalfLength - M2_spacing / 2 < component.location_.x ||
                 touchPoint.x + M2thinHalfLength + M2_spacing / 2 > component.location_.x + component.size_.x ||
                     touchPoint.y - M2_width / 2 - M2_spacing / 2 < component.location_.y || 
                     touchPoint.y + M2_width / 2 + M2_spacing / 2 > component.location_.y + component.size_.y) 
             M2thinFail = true;
 
-        for(auto rect : M2obsRect) {
-            auto tmpRect = rect;
-            tmpRect.ll.x -= (M2wideHalfLength + M2_spacing); 
-            tmpRect.ur.x += (M2wideHalfLength + M2_spacing); 
-            tmpRect.ll.y -= (M2_width * 3 / 2 + M2_spacing);
-            tmpRect.ur.y += (M2_width * 3 / 2 + M2_spacing);
-            
-            if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
-                M2wideFail = true;
-                break;
-            }
-        }
         if(touchPoint.x - M2wideHalfLength - M2_spacing / 2 < component.location_.x || 
                 touchPoint.x + M2wideHalfLength + M2_spacing / 2 > component.location_.x + component.size_.x ||
                     touchPoint.y - M2_width * 3 / 2 - M2_spacing / 2 < component.location_.y || 
@@ -1260,37 +1255,12 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         M2wideFail= false;
         M2thinFail = false;
-        for(auto rect : M2obsRect) {
-            auto tmpRect = rect;
-            tmpRect.ll.x -= (M2thinHalfLength + M2_spacing);
-            tmpRect.ur.x += (M2thinHalfLength + M2_spacing);
-            tmpRect.ll.y -= (M2_width / 2 + M2_spacing);
-            tmpRect.ur.y += (M2_width / 2 + M2_spacing);
-            
-            if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
-                M2thinFail = true;
-                break;
-            }
-        } // m2 side min area doesn't conflict with m2 obs
         if(touchPoint.x - M2thinHalfLength - M2_spacing / 2 < component.location_.x ||
                     touchPoint.x + M2thinHalfLength + M2_spacing / 2 > component.location_.x + component.size_.x ||
                     touchPoint.y - M2_width / 2 - M2_spacing / 2 < component.location_.y || 
                     touchPoint.y + M2_width / 2 + M2_spacing / 2 > component.location_.y + component.size_.y) {
             M2thinFail = true;
         }
-        for(auto rect : M2obsRect) {
-            auto tmpRect = rect;
-            tmpRect.ll.x -= (M2wideHalfLength + M2_spacing); 
-            tmpRect.ur.x += (M2wideHalfLength + M2_spacing); 
-            tmpRect.ll.y -= (M2_width * 3 / 2 + M2_spacing);
-            tmpRect.ur.y += (M2_width * 3 / 2 + M2_spacing);
-            
-            if(tmpRect.BoundaryExclusiveCover(touchPoint)) {
-                M2wideFail = true;
-                break;
-            }
-        }
-        
         if(touchPoint.x - M2wideHalfLength - M2_spacing / 2 < component.location_.x || 
                     touchPoint.x + M2wideHalfLength + M2_spacing / 2 > component.location_.x + component.size_.x ||
                     touchPoint.y - M2_width * 3 / 2 - M2_spacing / 2 < component.location_.y || 
