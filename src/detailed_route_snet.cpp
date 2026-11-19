@@ -689,6 +689,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
     std::size_t M1M2ViaCutCount = 0;
     bool M1M2HasM2MinArea = false;
     bool needM2Pad = pwgnd_.need_m2_minarea;
+    bool useWideM2Pad = false;
     int M1M2ViaLength;
     int M2wideHalfLength = 0;
    
@@ -754,6 +755,30 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
         }
         return generatedM2Blocked(candidate, spacing);
+    };
+    //do the metals overlap?
+    auto m2RectsTouch = [](const Rect2D<double> &a, const Rect2D<double> &b) {
+        double overlapX = std::min(a.ur.x, b.ur.x) - std::max(a.ll.x, b.ll.x);
+        double overlapY = std::min(a.ur.y, b.ur.y) - std::max(a.ll.y, b.ll.y);
+        return (overlapX > 0 && overlapY >= 0) || (overlapY > 0 && overlapX >= 0);
+    };
+    auto m2PiecesConnected = [&m2RectsTouch](const std::vector<Rect2D<double>> &pieces) -> bool {
+        if (pieces.empty()) {
+            return false;
+        }
+        std::vector<bool> reached(pieces.size(), false);
+        std::vector<std::size_t> pending{0};
+        reached[0] = true;
+        for (std::size_t next = 0; next < pending.size(); ++next) {
+            std::size_t current = pending[next];
+            for (std::size_t i = 0; i < pieces.size(); ++i) {
+                if (!reached[i] && m2RectsTouch(pieces[current], pieces[i])) {
+                    reached[i] = true;
+                    pending.push_back(i);
+                }
+            }
+        }
+        return pending.size() == pieces.size();
     };
     //helper function for finding M2-M3 via
     const int meshViaIdx = topLayerId_2_viaId_[cluster_horizontal_layer];
@@ -881,12 +906,48 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             Point2D<double> originDelta( origin.x - M1M2ViaOrigin.x, origin.y - M1M2ViaOrigin.y);
             bool connectedM2 = zOffset == 0 && M2LandingsOverlap(lowerMetal, upperMetal, originDelta);
             bool candidateNeedsPad = !M2MetalHasMinArea(upperMetal) && !(M1M2HasM2MinArea && connectedM2);
-            if (candidateNeedsPad && M2thinFail && M2wideFail) {
-                continue;
+            std::vector<Rect2D<double>> m2Pieces;
+
+            auto appendPlacedMetal = [&](const LayerRect &metalLayer, const Point2D<double> &viaOrigin) {
+                for (const auto &metal : metalLayer.rects_) {
+                    m2Pieces.emplace_back(
+                        viaOrigin.x + metal.ll.x * dbuPerMicron,
+                        viaOrigin.y + metal.ll.y * dbuPerMicron,
+                        viaOrigin.x + metal.ur.x * dbuPerMicron,
+                        viaOrigin.y + metal.ur.y * dbuPerMicron);
+                }
+            };
+            appendPlacedMetal(lowerMetal, M1M2ViaOrigin);
+            appendPlacedMetal(upperMetal, origin);
+            if (zOffset != 0) {
+                Wire bridge = makeM2BridgeWire(x, y, zOffset);
+                m2Pieces.push_back(getM2WireRect(bridge));
+            }
+            auto connectedWithPad = [&](bool wide) {
+                auto piecesWithPad = m2Pieces;
+                Wire pad = makeM2PadWire(x, y, wide);
+                piecesWithPad.push_back(getM2WireRect(pad));
+                return m2PiecesConnected(piecesWithPad);
+            };
+
+            bool candidateUsesWidePad = false;
+            candidateNeedsPad = candidateNeedsPad || !m2PiecesConnected(m2Pieces);
+
+            if (candidateNeedsPad) {
+                if (!M2thinFail && connectedWithPad(false)) {
+                    candidateUsesWidePad = false;
+                }
+                else if (!M2wideFail && connectedWithPad(true)) {
+                    candidateUsesWidePad = true;
+                }
+                else {
+                    continue;
+                }
             }
             M2M3ViaIdx = viaIdx;
             M2M3ViaOrigin = origin;
             needM2Pad = candidateNeedsPad;
+            useWideM2Pad = candidateUsesWidePad;
             return true;
         }
         return false;
@@ -1408,7 +1469,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
 
         
         if (needM2Pad) {
-            tmpWire = makeM2PadWire(touchX, touchY, M2thinFail);
+            tmpWire = makeM2PadWire(touchX, touchY, useWideM2Pad);
             Wires.push_back(tmpWire);//M2 min area
             placedM2Rects.push_back(getM2WireRect(tmpWire));
         }
