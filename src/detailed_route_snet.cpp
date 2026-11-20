@@ -815,7 +815,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             }
         }
         //wire obstacle check
-        if (fabs(y - signalY) < M3_minlength) {
+        if (zOffset != 0 && fabs(y - signalY) < M3_minlength) {
             Wire extraWire = makeM3MinAreaWire(x, y);
             Rect2D<double> extraRect = getM3WireRect(extraWire);
 
@@ -1464,6 +1464,31 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
                       << " supply: " << signal
                       << " origin: (" << M2M3ViaOrigin.x
                       << ", " << M2M3ViaOrigin.y << ") DBU\n";
+                        auto printM3Rect = [](const char *kind,
+                                  const Rect2D<double> &rect) {
+                std::cout << "Stack M3 " << kind
+                          << ": (" << rect.ll.x << ", " << rect.ll.y
+                          << ")(" << rect.ur.x << ", " << rect.ur.y
+                          << ") DBU" << std::endl;
+            };
+
+            Wire mainWire = makeM3Wire(touchX, touchY);
+            printM3Rect("main wire", getM3WireRect(mainWire));
+
+            if (zRouteOffset != 0 && fabs(touchY - signalY) < M3_minlength) {
+                Wire extraWire = makeM3MinAreaWire(touchX, touchY);
+                printM3Rect("extra wire", getM3WireRect(extraWire));
+            }
+
+            const auto &viaMetal = vias[M2M3ViaIdx].GetLayerRectsRef()[2];
+            for (const auto &metal : viaMetal.rects_) {
+                Rect2D<double> placed(
+                    M2M3ViaOrigin.x + metal.ll.x * dbuPerMicron,
+                    M2M3ViaOrigin.y + metal.ll.y * dbuPerMicron,
+                    M2M3ViaOrigin.x + metal.ur.x * dbuPerMicron,
+                    M2M3ViaOrigin.y + metal.ur.y * dbuPerMicron);
+                printM3Rect("access via", placed);
+            }
 }
 
 
@@ -1473,7 +1498,7 @@ bool PWRoute::M1M3DetailedRouteSNet(PWRouteComponent& component, std::string sig
             Wires.push_back(tmpWire);//M2 min area
             placedM2Rects.push_back(getM2WireRect(tmpWire));
         }
-    if (fabs(touchY - signalY) < M3_minlength) {
+    if (zRouteOffset != 0 && fabs(touchY - signalY) < M3_minlength){
         tmpWire = makeM3MinAreaWire(touchX, touchY);
         Wires.push_back(tmpWire);
         placedM3Rects.push_back(getM3WireRect(tmpWire));
