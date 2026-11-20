@@ -1677,9 +1677,13 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
         }
         return false;
     };
-
+    auto m3RectsTouch = [](const Rect2D<double> &a, const Rect2D<double> &b) {
+        double overlapX = std::min(a.ur.x, b.ur.x) - std::max(a.ll.x, b.ll.x);
+        double overlapY = std::min(a.ur.y, b.ur.y) - std::max(a.ll.y, b.ll.y);
+        return (overlapX > 0 && overlapY >= 0) || (overlapY > 0 && overlapX >= 0);
+    };
     //read rects collected and figure out if they block
-    auto generatedM3Blocked = [&](const Rect2D<double> &candidate, double candidateSpacing) -> bool {
+   auto generatedM3Blocked = [&](const Rect2D<double> &candidate, double candidateSpacing, const Rect2D<double> *connectingWire = nullptr) -> bool {
         auto spacingTable = layers[4].GetSpacingTable();
 
         auto blockedBy = [&](const std::vector<Rect2D<double>> &obstacles, bool sameSupply) -> bool {
@@ -1689,7 +1693,10 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
 
                 bool touches = (overlapX > 0 && overlapY >= 0) || (overlapY > 0 && overlapX >= 0);
 
-                if (sameSupply && touches) {
+                bool touchesThroughWire = sameSupply && connectingWire != nullptr && m3RectsTouch(candidate, *connectingWire) &&
+                    m3RectsTouch(*connectingWire, obs);
+
+                if (sameSupply && (touches || touchesThroughWire)) {
                     continue;
                 }
 
@@ -1739,9 +1746,10 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                blockedBy(pwgnd_.gndM3Rects, signal == "GROUND");
     };
 
-    auto viaM3Blocked = [&M3obsRect, &layers, &generatedM3Blocked, dbuPerMicron](
+   auto viaM3Blocked = [&M3obsRect, &layers, &generatedM3Blocked, dbuPerMicron](
         const LayerRect &metalLayer,
-        const Point2D<double> &origin) {
+        const Point2D<double> &origin,
+        const Rect2D<double> *connectingWire = nullptr) {
 
         auto spacingTable = layers[4].GetSpacingTable();
 
@@ -1767,7 +1775,7 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
                 }
             }
             Rect2D<double> candidate(lx, ly, ux, uy);
-            if (generatedM3Blocked(candidate, spacing)) {
+            if (generatedM3Blocked(candidate, spacing, connectingWire)) {
                 return true;
             }
         }
@@ -1996,7 +2004,8 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             if (directM3WireBlocked(candidateWire)) {
                 continue;
             }
-            if (viaM3Blocked(shapes[2], origin)) {
+            Rect2D<double> wireRect = getDirectM3WireRect(candidateWire);
+            if (viaM3Blocked(shapes[2], origin, &wireRect)) {
                 continue;
             }
             Point2D<double> meshOrigin(x + zOffset, signalY);
@@ -2004,9 +2013,8 @@ bool PWRoute::M2DetailedRouteSNet(PWRouteComponent& component, std::string signa
             if (viaM3Blocked(meshMetal, meshOrigin)) {
                 continue;
             }
-
-            Rect2D<double> wireRect = getDirectM3WireRect(candidateWire);
             bool touchesM3Wire = false;
+
             for (const auto &metal : shapes[2].rects_) {
                 double lx = origin.x + metal.ll.x * dbuPerMicron;
                 double ly = origin.y + metal.ll.y * dbuPerMicron;
