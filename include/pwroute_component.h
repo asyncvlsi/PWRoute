@@ -31,6 +31,7 @@ public:
 class PWRouteComponent {
 public:
     std::string name_;
+    std::string master_name_;
     phydb::Point2D<int> location_;
     phydb::Point2D<int> size_;
     std::vector<PWRoutePin> pins_;  
@@ -51,6 +52,7 @@ public:
         size_.y = macro_ptr->GetHeight() * dbuPerMicron;
 
         name_ = component.GetName();
+        master_name_ = macro_ptr->GetName();//get cell master name for better debug messages
         location_ = component.GetLocation();
         //enlarge by dbuPermicron
         for(auto& pin : macro_ptr->GetPinsRef()) {

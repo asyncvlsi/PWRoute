@@ -5,6 +5,7 @@
 #include <phydb/phydb.h> 
 #include "pwroute_component.h"
 #include "pin_edge.h"
+#include <utility>
 using namespace phydb;
 
 #if !defined(uint)
@@ -83,6 +84,11 @@ public:
     bool use_adj_mesh_point_flag_;
     std::set<Point2D<int>> powerM2Points;
     std::set<Point2D<int>> gndM2Points;
+    std::vector<Rect2D<double>> powerM2Rects;
+    std::vector<Rect2D<double>> gndM2Rects;
+    std::vector<Rect2D<double>> powerM3Rects;
+    std::vector<Rect2D<double>> gndM3Rects;
+
 };
 
 
@@ -109,10 +115,17 @@ class PWRoute {
     std::vector<double> layer_min_length_;
     std::map<int, int> layerid_2_trackid_;
     std::map<int, int> topLayerId_2_viaId_;
+    std::map<std::pair<int, int>, std::vector<int>> layerPair_2_viaIds_; //for tracking vias per Mi-Mi-1 pair
 
     std::vector<PWRouteComponent> components_;
 
     PWGND pwgnd_;
+    bool center_vias_ = false;
+    int m1_m2_min_cuts_ = 1;
+    int m1_m2_max_cuts_ = 0;
+    int m2_m3_min_cuts_ = 1;
+    int m2_m3_max_cuts_ = 0;
+
 
     int POWER_FOUND = 0;
     int POWER_UNFOUND = 0;
@@ -142,6 +155,7 @@ class PWRoute {
     void MarkUnusablePointComp(PWRouteComponent& component);
     void FindRowSNet(std::string componentName, std::string pinName, Rect2D<double> rect, int& powerY, int& gndY);
     void DetailedRouteSNet();
+    void RecordViaMetal(const LayerRect &metalLayer, const Point2D<double> &origin, std::vector<Rect2D<double>> &rects);
     void DetailedRouteSNetComp(PWRouteComponent& component);
     bool M2DetailedRouteSNet(PWRouteComponent& component, std::string signal, int signalY, 
         std::vector<Wire>& Wires, Point2D<int>& powerPoint);
@@ -166,6 +180,10 @@ class PWRoute {
     bool OutOfComponent(PWRouteComponent& , int, int, int );
     void ExtractPinEdge(std::string , std::vector<Rect2D<double>>& , PinEdge& );
     bool SameSignalObsBlock(int touchX, int touchY, int h_extend, int v_extend, int M2_spacing, PinEdge& pin_edges);
+    bool PinCoversRect(const std::vector<Rect2D<double>> &pinRects, const Rect2D<double> &viaMetalRect);
+    bool GetViaCutCenterOffset(const LayerRect &cutLayer, Point2D<double> &center);
+
+
   public: 
     PWRoute() {}
     PWRoute(phydb::PhyDB* p) : db_ptr_(p){}
@@ -175,6 +193,8 @@ class PWRoute {
 
     void SetMeshWidthStep(int, int, int);
     void SetReinforcement(bool ); 
+    void SetCenterVias(bool center_vias);
+    void SetViaCutLimits(int m1_m2_min, int m1_m2_max, int m2_m3_min, int m2_m3_max);
     void RunPWRoute();
     void ExportToPhyDB();
 

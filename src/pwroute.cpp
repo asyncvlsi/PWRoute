@@ -39,10 +39,117 @@ void PWRoute::LinkTrackToLayer() {
     }
 }
 
+bool PWRoute::GetViaCutCenterOffset(const LayerRect &cutLayer, Point2D<double> &center) {
+
+    if (cutLayer.rects_.empty()) {
+        return false;
+    }
+
+    double lx = cutLayer.rects_[0].ll.x;
+    double ly = cutLayer.rects_[0].ll.y;
+    double ux = cutLayer.rects_[0].ur.x;
+    double uy = cutLayer.rects_[0].ur.y;
+
+    for (const auto &cut : cutLayer.rects_) {
+        lx = std::min(lx, cut.ll.x);
+        ly = std::min(ly, cut.ll.y);
+        ux = std::max(ux, cut.ur.x);
+        uy = std::max(uy, cut.ur.y);
+    }
+
+    center.x = (lx + ux) / 2.0;
+    center.y = (ly + uy) / 2.0;
+    return true;
+}
+
 void PWRoute::SetDefaultVia() {
-    bool debug = false;
+    // bool debug = false;
     auto layer_v = db_ptr_->GetTechPtr()->GetLayersRef();
     auto vias = db_ptr_->GetTechPtr()->GetLefViasRef();
+    layerPair_2_viaIds_.clear();
+
+    for (uint viaId = 0; viaId < vias.size(); viaId++) {
+        auto &via = vias[viaId];
+        auto &shapes = via.GetLayerRectsRef();
+        auto cutCount = shapes[1].rects_.size();//get rects in via layer
+        auto *tech = db_ptr_->GetTechPtr();
+
+        int lowerId = tech->GetLayerId(shapes[0].layer_name_);
+        int upperId = tech->GetLayerId(shapes[2].layer_name_);
+        auto pair = std::make_pair(lowerId, upperId);
+
+        layerPair_2_viaIds_[pair].push_back(viaId);
+
+        if (verbose_ >= debug) {
+            std::cout << "Via candidate for "
+                      << shapes[0].layer_name_
+                      << "-" << shapes[2].layer_name_
+                      << ": " << via.GetName()
+                      << " [id " << viaId << "]"
+                      << " cuts: " << cutCount
+                      << std::endl;
+
+            if (center_vias_) {
+                Point2D<double> center;
+
+                if (GetViaCutCenterOffset(shapes[1], center)) {
+                    std::cout << "Via cut center: " << via.GetName()
+                              << " offset: (" << center.x
+                              << ", " << center.y << ") um"
+                              << std::endl;
+                }
+                else {
+                    std::cout << "Invalid via: " << via.GetName()
+                              << " has no cut rectangles"
+                              << std::endl;
+                }
+            }
+        }
+    }
+
+    //for M1-M2 explicitly at the moment 
+    auto &m1m2Vias = layerPair_2_viaIds_.at(std::make_pair(0, 2));
+
+    std::stable_sort(
+        m1m2Vias.begin(),
+        m1m2Vias.end(),
+        [&vias](int firstId, int secondId) {
+            auto &first = vias[firstId].GetLayerRectsRef();
+            auto &second = vias[secondId].GetLayerRectsRef();
+            return first[1].rects_.size() > second[1].rects_.size();
+        });
+
+    if (verbose_ >= debug) {
+        std::cout << "M1-M2 search order:";
+        for (int viaId : m1m2Vias) {
+            std::cout << " " << vias[viaId].GetName();
+        }
+        std::cout << std::endl;
+    }
+    //end of explicity M1-M2
+    //for M2-M3 vias
+    auto &m2m3Vias = layerPair_2_viaIds_.at(std::make_pair(2, 4));
+
+    std::stable_sort(
+        m2m3Vias.begin(),
+        m2m3Vias.end(),
+        [&vias](int firstId, int secondId) {
+            auto &first = vias[firstId].GetLayerRectsRef();
+            auto &second = vias[secondId].GetLayerRectsRef();
+            return first[1].rects_.size() > second[1].rects_.size();
+        });
+
+    if (verbose_ >= debug) {
+        std::cout << "M2-M3 search order:";
+        for (int viaId : m2m3Vias) {
+            std::cout << " " << vias[viaId].GetName();
+        }
+        std::cout << std::endl;
+    }
+    //end of explicity M2-M3
+
+
+
     for(uint layerid = 0; layerid < layer_v.size(); layerid++) {
         if(layer_v[layerid].GetType() != phydb::LayerType::ROUTING)
             continue;
@@ -61,8 +168,17 @@ void PWRoute::SetDefaultVia() {
         }
         assert(found_lefvia_id != -1);
         topLayerId_2_viaId_[layerid] = found_lefvia_id;
-        if(debug)
-            std::cout << "layerid: " << layerid << " " << found_lefvia_id << std::endl;
+        if(verbose_ >= debug){
+            auto &selected = vias[found_lefvia_id];
+            auto &shapes = selected.GetLayerRectsRef();
+            std::cout << "Default via for " << layer_name
+                      << ": " << selected.GetName()
+                      << " [id " << found_lefvia_id << "]"
+                      << " layers: " << shapes[0].layer_name_
+                      << " " << shapes[1].layer_name_
+                      << " " << shapes[2].layer_name_
+                      << std::endl;
+        }
     }
 }
 
@@ -844,8 +960,6 @@ void PWRoute::RouteSNet() {
     //MarkUnusablePoint();
     AdjMeshPointFlag();
     DetailedRouteSNet();
-    if(POWER_UNFOUND != 0 || GROUND_UNFOUND != 0)
-        std::cout << "ATTENTION: SOME CELLS FAIL TO ROUTE!" << std::endl;
     
     //M3CloseViasPad();
 
@@ -986,6 +1100,30 @@ void PWRoute::SetReinforcement(bool use_reinforcement) {
     if(verbose_ > 0) 
        std::cout << "use_reinforcement_ set to: " << use_reinforcement_ << std::endl;
 }
+
+void PWRoute::SetCenterVias(bool center_vias) {
+    center_vias_ = center_vias;
+
+    if (verbose_ > none) {
+        std::cout << "center_vias_ set to: "
+                  << center_vias_ << std::endl;
+    }
+}
+
+void PWRoute::SetViaCutLimits(int m1_m2_min, int m1_m2_max, int m2_m3_min, int m2_m3_max) {
+    m1_m2_min_cuts_ = m1_m2_min;
+    m1_m2_max_cuts_ = m1_m2_max;
+    m2_m3_min_cuts_ = m2_m3_min;
+    m2_m3_max_cuts_ = m2_m3_max;
+
+    if (verbose_ > none) {
+        std::cout << "M1-M2 cut limits: min=" << m1_m2_min_cuts_
+                  << " max=" << m1_m2_max_cuts_ << " (0=unlimited)\n";
+        std::cout << "M2-M3 cut limits: min=" << m2_m3_min_cuts_
+                  << " max=" << m2_m3_max_cuts_ << " (0=unlimited)\n";
+    }
+}
+
 
 void PWRoute::RunPWRoute() {
     if(verbose_ > none) {
